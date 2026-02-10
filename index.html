@@ -6,32 +6,34 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Life Reset">
-    <title>✨ Life Reset v2</title>
+    <title>✨ Life Reset v3</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-                    :root {
+        
+        :root {
+            /* Backgrounds */
             --bg-gradient: linear-gradient(135deg, #fdfcfb 0%, #f9f8f6 50%, #fefefe 100%);
             
-            /* Powder Blue - KEEPING THIS ONE! */
+            /* Powder Blue - Primary */
             --primary: #5dade2;
             --primary-light: #d6eaf8;
             --primary-lighter: #ebf5fb;
             --primary-dark: #1a5490;
             
-            /* DEEP EMERALD - Like a dark forest */
+            /* Deep Emerald Green */
             --emerald: #064e3b;
             --emerald-light: #d1fae5;
             --emerald-lighter: #ecfdf5;
             --emerald-dark: #022c22;
             
-            /* DEEP ROYAL PURPLE - Like dark amethyst */
+            /* Deep Royal Purple */
             --amethyst: #581c87;
             --amethyst-light: #e9d5ff;
             --amethyst-lighter: #f3e8ff;
             --amethyst-dark: #3b0764;
             
-            /* DEEP WINE RED - Like dark ruby */
+            /* Deep Wine Red */
             --ruby: #7f1d1d;
             --ruby-light: #fee2e2;
             --ruby-lighter: #fef2f2;
@@ -61,41 +63,52 @@
             --text-light: #2c3e50;
             --text-lighter: #5d6d7e;
             
-            /* Semantic Colors */
+            /* Semantic */
             --success: #064e3b;
             --warning: #ca8a04;
             --danger: #7f1d1d;
             
-            /* Surface Colors */
+            /* Surface */
             --surface: #ffffff;
             --surface-hover: #f8f9fa;
-            --border: #aab7b8;
+            --border: #cbd5e0;
             
             /* Shadows */
-            --shadow-sm: 0 2px 8px rgba(93, 173, 226, 0.15);
-            --shadow-md: 0 4px 16px rgba(93, 173, 226, 0.20);
-            --shadow-lg: 0 8px 32px rgba(93, 173, 226, 0.25);
+            --shadow-sm: 0 2px 8px rgba(93, 173, 226, 0.12);
+            --shadow-md: 0 4px 16px rgba(93, 173, 226, 0.16);
+            --shadow-lg: 0 8px 32px rgba(93, 173, 226, 0.20);
         }
-
-
+        
         body { font-family: 'DM Sans', sans-serif; background: var(--bg-gradient); color: var(--text); line-height: 1.6; overflow-x: hidden; min-height: 100vh; padding-bottom: 80px; }
+        
+        /* Header */
         .app-header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--border); padding: 20px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .header-content { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .app-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .app-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--amethyst)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
         .icon-btn { background: var(--surface); border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; font-size: 1.2rem; }
         .icon-btn:hover { background: var(--primary-light); border-color: var(--primary); transform: scale(1.05); }
+        
+        /* Container */
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .today-card { background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3)); border-radius: 24px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-lg); animation: fadeInUp 0.6s ease; }
+        
+        /* Today Card */
+        .today-card { background: linear-gradient(135deg, var(--primary-lighter), var(--amethyst-lighter)); border-radius: 24px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-lg); animation: fadeInUp 0.6s ease; }
         .today-date { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 5px; }
         .today-subtitle { color: var(--text-light); font-size: 1rem; margin-bottom: 20px; }
-        .progress-bar-container { background: rgba(255, 255, 255, 0.6); border-radius: 12px; height: 12px; overflow: hidden; margin-bottom: 12px; }
-        .progress-bar { background: linear-gradient(90deg, var(--primary), var(--secondary)); height: 100%; border-radius: 12px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        
+        /* Progress Bar */
+        .progress-bar-container { background: rgba(255, 255, 255, 0.7); border-radius: 12px; height: 12px; overflow: hidden; margin-bottom: 12px; }
+        .progress-bar { background: linear-gradient(90deg, var(--primary), var(--emerald)); height: 100%; border-radius: 12px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         .progress-bar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
         @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
         .progress-text { font-size: 0.9rem; color: var(--text-light); text-align: center; }
+        
+        /* View Selector */
         .view-selector { display: flex; gap: 8px; margin-bottom: 25px; background: var(--surface); padding: 6px; border-radius: 16px; box-shadow: var(--shadow-sm); }
         .view-btn { flex: 1; background: none; border: none; padding: 10px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; color: var(--text-lighter); cursor: pointer; border-radius: 12px; transition: all 0.3s ease; }
-        .view-btn.active { background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3)); color: var(--primary-dark); }
+        .view-btn.active { background: linear-gradient(135deg, var(--primary-light), var(--amethyst-lighter)); color: var(--primary-dark); }
+        
+        /* Day Section */
         .day-section { background: var(--surface); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); animation: fadeInUp 0.4s ease; animation-fill-mode: backwards; }
         .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .day-title-group { display: flex; align-items: center; gap: 10px; }
@@ -103,11 +116,15 @@
         .day-date { font-size: 0.85rem; color: var(--text-lighter); }
         .day-stats { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
         .completion-badge { background: var(--primary-light); color: var(--primary-dark); padding: 4px 12px; border-radius: 12px; font-weight: 500; }
-        .completion-badge.complete { background: var(--success); color: #2d5d3d; }
+        .completion-badge.complete { background: var(--emerald-light); color: var(--emerald-dark); }
+        
+        /* Daily Notes */
         .daily-notes { background: var(--surface-hover); border: 2px dashed var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .daily-notes-title { font-weight: 600; color: var(--text); margin-bottom: 8px; font-size: 0.9rem; }
         .daily-notes-textarea { width: 100%; min-height: 60px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; resize: vertical; transition: all 0.3s ease; }
-        .daily-notes-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .daily-notes-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-lighter); }
+        
+        /* Task List */
         .task-list { display: flex; flex-direction: column; gap: 10px; }
         .task-item-wrapper { border-radius: 12px; overflow: hidden; }
         .task-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--surface-hover); border: 1px solid var(--border); transition: all 0.3s ease; cursor: pointer; }
@@ -115,26 +132,33 @@
         .task-item.completed { opacity: 0.6; }
         .task-item.completed .task-text { text-decoration: line-through; color: var(--text-lighter); }
         .task-item.expanded { border-bottom: none; border-radius: 12px 12px 0 0; }
+        
+        /* Checkbox */
         .checkbox { width: 24px; height: 24px; border: 2px solid var(--primary); border-radius: 50%; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; margin-top: 2px; }
         .checkbox:hover { background: var(--primary-light); transform: scale(1.1); }
         .checkbox.checked { background: var(--primary); border-color: var(--primary); }
         .checkbox.checked::after { content: '✓'; color: white; font-size: 14px; font-weight: bold; }
+        
+        /* Task Content */
         .task-content { flex: 1; }
         .task-header-row { display: flex; justify-content: space-between; align-items: flex-start; }
         .task-text { font-size: 1rem; color: var(--text); margin-bottom: 6px; }
         .task-expand-icon { font-size: 0.8rem; color: var(--text-lighter); transition: transform 0.3s ease; }
         .task-item.expanded .task-expand-icon { transform: rotate(180deg); }
+        
+        /* Task Meta */
         .task-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .task-tag { font-size: 0.75rem; padding: 3px 10px; border-radius: 8px; font-weight: 500; }
-        .tag-habit { background: #dbeafe; color: #1e3a8a; }
-        .tag-cleaning { background: #ffe4e6; color: #9f1239; }
-        .tag-skincare { background: #e9d5ff; color: #581c87; }
-        .tag-hair { background: #fef3c7; color: #92400e; }
-        .tag-laundry { background: #d1fae5; color: #064e3b; }
-        .tag-special { background: #fef9c3; color: #ca8a04; }
-        .tag-deepclean { background: #dcfce7; color: #14532d; }
-
+        .tag-habit { background: var(--sapphire-light); color: var(--sapphire); }
+        .tag-cleaning { background: var(--rose-gold-light); color: var(--rose-gold); }
+        .tag-skincare { background: var(--amethyst-light); color: var(--amethyst); }
+        .tag-hair { background: var(--topaz-light); color: var(--topaz); }
+        .tag-laundry { background: var(--jade-light); color: var(--jade); }
+        .tag-special { background: var(--gold-light); color: var(--gold); }
+        .tag-deepclean { background: var(--emerald-light); color: var(--emerald); }
         .task-time { font-size: 0.75rem; color: var(--text-lighter); }
+        
+        /* Task Details Dropdown */
         .task-details { background: white; border: 1px solid var(--border); border-top: none; padding: 20px; border-radius: 0 0 12px 12px; display: none; animation: slideDown 0.3s ease; }
         .task-details.active { display: block; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -145,17 +169,28 @@
         .task-details-list { list-style: none; padding-left: 0; }
         .task-details-list li { padding: 4px 0; padding-left: 20px; position: relative; }
         .task-details-list li::before { content: '•'; position: absolute; left: 5px; color: var(--primary); }
+        
+        /* Task Notes Input */
         .task-notes-input { width: 100%; min-height: 80px; border: 2px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; resize: vertical; transition: all 0.3s ease; }
-        .task-notes-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .task-notes-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-lighter); }
+        
+        /* Task Action Buttons */
         .task-actions-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .task-action-btn-small { padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
-        .btn-edit { background: var(--secondary); color: white; }
-        .btn-move { background: var(--accent); color: white; }
-        .btn-delete { background: #e8a5a5; color: white; }
+        .task-action-btn-small { padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; color: white; }
+        .btn-edit { background: var(--primary); }
+        .btn-edit:hover { background: var(--primary-dark); }
+        .btn-move { background: var(--amethyst); }
+        .btn-move:hover { background: var(--amethyst-dark); }
+        .btn-delete { background: var(--ruby); }
+        .btn-delete:hover { background: var(--ruby-dark); }
         .task-action-btn-small:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+        
+        /* Add Task Button */
         .add-task-btn { width: 100%; padding: 12px; background: var(--surface-hover); border: 2px dashed var(--border); border-radius: 12px; color: var(--text-lighter); font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .add-task-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary-dark); }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border); padding: 10px; display: flex; justify-content: space-around; box-shadow: 0 -4px 16px rgba(232, 165, 181, 0.08); z-index: 100; backdrop-filter: blur(10px); }
+        
+        /* Bottom Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border); padding: 10px; display: flex; justify-content: space-around; box-shadow: 0 -4px 16px rgba(93, 173, 226, 0.08); z-index: 100; backdrop-filter: blur(10px); }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; background: none; border: none; cursor: pointer; transition: all 0.3s ease; border-radius: 12px; }
         .nav-item:hover { background: var(--surface-hover); }
         .nav-item.active { background: var(--primary-light); }
@@ -164,6 +199,8 @@
         .nav-item.active .nav-icon { color: var(--primary-dark); }
         .nav-label { font-size: 0.7rem; color: var(--text-lighter); }
         .nav-item.active .nav-label { color: var(--primary-dark); font-weight: 500; }
+        
+        /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
         .modal.active { display: flex; }
         .modal-content { background: var(--surface); border-radius: 24px; padding: 30px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalSlideUp 0.4s ease; }
@@ -172,19 +209,29 @@
         .modal-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 600; }
         .modal-close { background: none; border: none; font-size: 2rem; color: var(--text-lighter); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s ease; }
         .modal-close:hover { background: var(--surface-hover); color: var(--text); }
+        
+        /* Forms */
         .form-group { margin-bottom: 20px; }
         .form-label { display: block; font-size: 0.9rem; font-weight: 500; color: var(--text); margin-bottom: 8px; }
         .form-input, .form-textarea, .form-select { width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; color: var(--text); background: var(--surface); transition: all 0.3s ease; }
-        .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-lighter); }
         .form-textarea { min-height: 100px; resize: vertical; }
+        
+        /* Buttons */
         .btn { padding: 12px 24px; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; width: 100%; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        
+        /* Settings */
         .settings-section { margin-bottom: 30px; }
         .settings-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 600; margin-bottom: 15px; }
         .info-box { background: var(--primary-light); border-radius: 12px; padding: 15px; margin-bottom: 20px; color: var(--text); font-size: 0.9rem; line-height: 1.5; }
+        
+        /* Animations */
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
+        
+        /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
             .today-card { padding: 20px; }
@@ -237,27 +284,26 @@
                     • Your weekly routine auto-generates new weeks<br>
                     • Check off tasks as you complete them<br>
                     • Click tasks to see details & add notes<br>
-                    • Your progress saves automatically<br><br>
-                    <strong>Data Storage:</strong> Everything is saved in your browser!
+                    • Your progress saves automatically
                 </div>
             </div>
 
             <div class="settings-section">
                 <h2 class="settings-title">Backup & Restore</h2>
-                <div class="info-box" style="background: rgba(181, 213, 232, 0.2);">
+                <div class="info-box" style="background: var(--amethyst-light);">
                     <strong>💾 Protect your data!</strong><br>
                     Export: Download a backup file<br>
                     Import: Restore from a backup file
                 </div>
                 <button class="btn btn-primary" onclick="exportData()" style="margin-bottom: 10px;">💾 Export Backup</button>
-                <button class="btn btn-primary" onclick="document.getElementById('import-file').click()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--secondary), #8fb5cc);">📂 Import Backup</button>
+                <button class="btn btn-primary" onclick="document.getElementById('import-file').click()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--emerald), var(--jade));">📂 Import Backup</button>
                 <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display: none;">
             </div>
 
             <div class="settings-section">
                 <h2 class="settings-title">Quick Actions</h2>
                 <button class="btn btn-primary" onclick="generateNewWeek()" style="margin-bottom: 10px;">🔄 Generate New Week</button>
-                <button class="btn btn-primary" onclick="resetApp()" style="background: linear-gradient(135deg, #d48899, #b87080);">⚠️ Reset All Data</button>
+                <button class="btn btn-primary" onclick="resetApp()" style="background: linear-gradient(135deg, var(--ruby), var(--ruby-dark));">⚠️ Reset All Data</button>
             </div>
         </div>
     </div>
@@ -301,6 +347,7 @@
                         <option value="hair">Hair Care</option>
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -332,6 +379,7 @@
                         <option value="hair">Hair Care</option>
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -360,6 +408,7 @@
     </div>
 
     <script>
+    cat > /mnt/user-data/outputs/life-reset-v3-part2.js << 'PART2EOF'
         const ROUTINES_LIBRARY = {
             'make-bed': { name: 'Make Your Bed', time: '2 min', category: 'habit', steps: ['Pull covers up smooth', 'Fluff pillows', 'Takes 90 seconds', 'Sets the tone for your day'] },
             'dishes': { name: 'Dishes Protocol', time: '5 min', category: 'habit', steps: ['After every meal/snack', 'Immediately to sink OR dishwasher', 'No exceptions, no "later"', 'Wipe down counter/table', 'Future you will thank you!'] },
@@ -893,3 +942,9 @@
     </script>
 </body>
 </html>
+
+{
+  "returncode" : 0,
+  "stdout" : "",
+  "stderr" : ""
+}
