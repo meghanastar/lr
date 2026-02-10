@@ -10,35 +10,71 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-            :root {
+                    :root {
             --bg-gradient: linear-gradient(135deg, #fdfcfb 0%, #f9f8f6 50%, #fefefe 100%);
+            
+            /* Powder Blue */
             --primary: #5dade2;
-            --primary-light: #aed6f1;
+            --primary-light: #d6eaf8;
+            --primary-lighter: #ebf5fb;
             --primary-dark: #1a5490;
+            
+            /* Emerald Green */
             --emerald: #229954;
+            --emerald-light: #d5f4e6;
+            --emerald-lighter: #eafaf1;
             --emerald-dark: #186a3b;
+            
+            /* Amethyst Purple */
             --amethyst: #6c3483;
-            --amethyst-light: #af7ac5;
+            --amethyst-light: #e8daef;
+            --amethyst-lighter: #f4ecf7;
+            
+            /* Ruby Red */
             --ruby: #922b21;
-            --ruby-light: #cb4335;
+            --ruby-light: #f2d7d5;
+            --ruby-lighter: #fadbd8;
+            
+            /* Sapphire Blue */
             --sapphire: #1a5490;
+            --sapphire-light: #d4e6f1;
+            --sapphire-lighter: #ebf5fb;
+            
+            /* Gold & Topaz */
             --topaz: #b8860b;
+            --topaz-light: #fef5e7;
             --gold: #d4af37;
+            --gold-light: #fcf3cf;
+            
+            /* Rose Gold */
             --rose-gold: #b76e79;
+            --rose-gold-light: #f8e5e8;
+            
+            /* Jade */
             --jade: #0e6655;
+            --jade-light: #d1f2eb;
+            
+            /* Text Colors */
             --text: #1a252f;
             --text-light: #2c3e50;
             --text-lighter: #5d6d7e;
+            
+            /* Semantic Colors */
             --success: #229954;
             --warning: #d4af37;
             --danger: #922b21;
+            
+            /* Surface Colors */
             --surface: #ffffff;
             --surface-hover: #f8f9fa;
             --border: #aab7b8;
+            
+            /* Shadows */
             --shadow-sm: 0 2px 8px rgba(93, 173, 226, 0.15);
             --shadow-md: 0 4px 16px rgba(93, 173, 226, 0.20);
             --shadow-lg: 0 8px 32px rgba(93, 173, 226, 0.25);
         }
+
         body { font-family: 'DM Sans', sans-serif; background: var(--bg-gradient); color: var(--text); line-height: 1.6; overflow-x: hidden; min-height: 100vh; padding-bottom: 80px; }
         .app-header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--border); padding: 20px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .header-content { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
