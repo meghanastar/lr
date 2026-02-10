@@ -132,6 +132,21 @@
         .task-item.completed { opacity: 0.6; }
         .task-item.completed .task-text { text-decoration: line-through; color: var(--text-lighter); }
         .task-item.expanded { border-bottom: none; border-radius: 12px 12px 0 0; }
+                .task-item { 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 12px; 
+            padding: 12px; 
+            background: var(--surface-hover); 
+            border: 1px solid var(--border); 
+            transition: all 0.3s ease; 
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
         
         /* Checkbox */
         .checkbox { width: 24px; height: 24px; border: 2px solid var(--primary); border-radius: 50%; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; margin-top: 2px; }
@@ -925,6 +940,11 @@
         }
 
         function toggleTaskDetails(weekKey, dateKey, taskId) {
+            // Don't toggle if we just finished dragging
+            if (isDragging) {
+                return;
+            }
+            
             const taskKey = `${weekKey}-${dateKey}-${taskId}`;
             if (expandedTasks.has(taskKey)) {
                 expandedTasks.delete(taskKey);
@@ -933,6 +953,7 @@
             }
             renderCurrentView();
         }
+
 
         function saveTaskNotes(weekKey, dateKey, taskId, notes) {
             const weekData = loadData(weekKey);
@@ -1182,6 +1203,9 @@
                 <div class="task-item-wrapper">
                     <div class="task-item ${task.completed ? 'completed' : ''} ${isExpanded ? 'expanded' : ''}" 
                          draggable="true"
+                        data-week-key="${weekKey}"
+                        data-date-key="${dateKey}"
+                        data-task-id="${task.id}"
                          ondragstart="handleDragStart(event, '${weekKey}', '${dateKey}', ${task.id})"
                          ondragover="handleDragOver(event)"
                          ondrop="handleDrop(event, '${weekKey}', '${dateKey}', ${task.id})"
@@ -1945,6 +1969,116 @@
             
             renderCurrentView();
             alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
+        }
+        // Touch support for mobile
+        let touchStartY = 0;
+        let touchCurrentY = 0;
+        let touchedElement = null;
+        let isDragging = false;
+        let dragThreshold = 10; // pixels to move before starting drag
+
+        function handleTouchStart(event) {
+            // Don't start drag if clicking checkbox or buttons
+            if (event.target.closest('.checkbox') || 
+                event.target.closest('button') || 
+                event.target.closest('textarea') ||
+                event.target.closest('input')) {
+                return;
+            }
+            
+            touchedElement = event.currentTarget;
+            touchStartY = event.touches[0].clientY;
+            touchCurrentY = touchStartY;
+            isDragging = false;
+            
+            // Add a slight delay to distinguish tap from drag
+            setTimeout(() => {
+                if (touchedElement && Math.abs(touchCurrentY - touchStartY) > dragThreshold) {
+                    isDragging = true;
+                    touchedElement.classList.add('dragging');
+                    
+                    // Get task data
+                    draggedTask = {
+                        weekKey: touchedElement.dataset.weekKey,
+                        dateKey: touchedElement.dataset.dateKey,
+                        taskId: parseInt(touchedElement.dataset.taskId)
+                    };
+                }
+            }, 100);
+        }
+
+        function handleTouchMove(event) {
+            if (!touchedElement) return;
+            
+            touchCurrentY = event.touches[0].clientY;
+            
+            // Start dragging if moved enough
+            if (!isDragging && Math.abs(touchCurrentY - touchStartY) > dragThreshold) {
+                isDragging = true;
+                touchedElement.classList.add('dragging');
+                
+                draggedTask = {
+                    weekKey: touchedElement.dataset.weekKey,
+                    dateKey: touchedElement.dataset.dateKey,
+                    taskId: parseInt(touchedElement.dataset.taskId)
+                };
+            }
+            
+            if (isDragging) {
+                event.preventDefault(); // Prevent scrolling while dragging
+                
+                // Find element under finger
+                const touch = event.touches[0];
+                const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                const taskBelow = elementBelow?.closest('.task-item');
+                
+                // Remove all drag-over classes
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                
+                // Add drag-over to element under finger
+                if (taskBelow && taskBelow !== touchedElement) {
+                    taskBelow.classList.add('drag-over');
+                }
+            }
+        }
+
+        function handleTouchEnd(event) {
+            if (!touchedElement) return;
+            
+            // If we were dragging, handle the drop
+            if (isDragging && draggedTask) {
+                const touch = event.changedTouches[0];
+                const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                const taskBelow = elementBelow?.closest('.task-item');
+                
+                if (taskBelow && taskBelow !== touchedElement) {
+                    const targetWeekKey = taskBelow.dataset.weekKey;
+                    const targetDateKey = taskBelow.dataset.dateKey;
+                    const targetTaskId = parseInt(taskBelow.dataset.taskId);
+                    
+                    // Same day reorder
+                    if (draggedTask.weekKey === targetWeekKey && draggedTask.dateKey === targetDateKey) {
+                        reorderTasksInDay(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetTaskId);
+                    } 
+                    // Move between days
+                    else {
+                        moveTaskBetweenDays(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetWeekKey, targetDateKey);
+                    }
+                }
+                
+                // Prevent click event from firing
+                event.preventDefault();
+            } else if (!isDragging) {
+                // It was a tap, not a drag - let click handler work
+                // Don't prevent default here
+            }
+            
+            // Cleanup
+            touchedElement?.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            touchedElement = null;
+            draggedTask = null;
+            isDragging = false;
         }
 
 
