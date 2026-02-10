@@ -305,6 +305,20 @@
             background: var(--ruby-light);
             color: var(--ruby-dark);
         }
+                /* Drag & Drop */
+        .task-item[draggable="true"] {
+            cursor: move;
+        }
+        
+        .task-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--primary);
+        }
+        
+        .task-item.drag-over {
+            border-top: 3px solid var(--primary);
+        }
+
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -1167,6 +1181,11 @@
             return `
                 <div class="task-item-wrapper">
                     <div class="task-item ${task.completed ? 'completed' : ''} ${isExpanded ? 'expanded' : ''}" 
+                         draggable="true"
+                         ondragstart="handleDragStart(event, '${weekKey}', '${dateKey}', ${task.id})"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event, '${weekKey}', '${dateKey}', ${task.id})"
+                         ondragend="handleDragEnd(event)"
                          onclick="toggleTaskDetails('${weekKey}', '${dateKey}', ${task.id})">
                         <div class="checkbox ${task.completed ? 'checked' : ''}" 
                              onclick="toggleTask('${weekKey}', '${dateKey}', ${task.id}, event)"></div>
@@ -1837,6 +1856,95 @@
                 document.querySelectorAll('.nav-item')[1].classList.add('active'); // Week tab
                 switchView('week');
             }
+        }
+        let draggedTask = null;
+
+        function handleDragStart(event, weekKey, dateKey, taskId) {
+            event.stopPropagation(); // Prevent expanding task
+            draggedTask = { weekKey, dateKey, taskId };
+            event.currentTarget.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            
+            const target = event.currentTarget;
+            if (target.classList.contains('task-item') && !target.classList.contains('dragging')) {
+                target.classList.add('drag-over');
+            }
+        }
+
+        function handleDrop(event, targetWeekKey, targetDateKey, targetTaskId) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (!draggedTask) return;
+            
+            // Remove drag-over class
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            
+            // Same day reorder
+            if (draggedTask.weekKey === targetWeekKey && draggedTask.dateKey === targetDateKey) {
+                reorderTasksInDay(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetTaskId);
+            } 
+            // Move between days
+            else {
+                moveTaskBetweenDays(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetWeekKey, targetDateKey);
+            }
+        }
+
+        function handleDragEnd(event) {
+            event.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            draggedTask = null;
+        }
+
+        function reorderTasksInDay(weekKey, dateKey, draggedTaskId, targetTaskId) {
+            const weekData = loadData(weekKey);
+            const tasks = weekData[dateKey].tasks;
+            
+            const draggedIndex = tasks.findIndex(t => t.id === draggedTaskId);
+            const targetIndex = tasks.findIndex(t => t.id === targetTaskId);
+            
+            if (draggedIndex === -1 || targetIndex === -1) return;
+            
+            // Remove dragged task
+            const [draggedTaskObj] = tasks.splice(draggedIndex, 1);
+            
+            // Insert at new position
+            tasks.splice(targetIndex, 0, draggedTaskObj);
+            
+            saveData(weekKey, weekData);
+            renderCurrentView();
+        }
+
+        function moveTaskBetweenDays(sourceWeekKey, sourceDateKey, taskId, targetWeekKey, targetDateKey) {
+            // Load source week
+            const sourceWeekData = loadData(sourceWeekKey);
+            const taskIndex = sourceWeekData[sourceDateKey].tasks.findIndex(t => t.id === taskId);
+            
+            if (taskIndex === -1) return;
+            
+            // Get task and remove from source
+            const task = sourceWeekData[sourceDateKey].tasks[taskIndex];
+            sourceWeekData[sourceDateKey].tasks.splice(taskIndex, 1);
+            saveData(sourceWeekKey, sourceWeekData);
+            
+            // Add to target
+            let targetWeekData;
+            if (sourceWeekKey === targetWeekKey) {
+                targetWeekData = sourceWeekData;
+            } else {
+                targetWeekData = loadData(targetWeekKey);
+            }
+            
+            targetWeekData[targetDateKey].tasks.push(task);
+            saveData(targetWeekKey, targetWeekData);
+            
+            renderCurrentView();
+            alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
         }
 
 
