@@ -700,6 +700,33 @@
         </div>
     </div>
             
+    <div id="day-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="day-detail-title">Loading...</h2>
+                <button class="modal-close" onclick="closeModal('day-detail-modal')">×</button>
+            </div>
+            
+            <div class="daily-notes" style="margin-bottom: 20px;">
+                <div class="daily-notes-title">📔 Notes for this day</div>
+                <textarea class="daily-notes-textarea" id="day-detail-notes" placeholder="Add notes..."></textarea>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="font-size: 1.1rem; font-weight: 600;">Tasks</h3>
+                    <span id="day-detail-completion" class="completion-badge">0/0</span>
+                </div>
+                <div id="day-detail-tasks"></div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="goToDay()" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));">
+                Go to This Day →
+            </button>
+        </div>
+    </div>
+
+
 
 
     <script>
@@ -1746,9 +1773,114 @@
             renderMonthView();
         }
 
-        function openDayDetail(dateKey) {
-            // For now, just alert - we'll build the detail view in next step
-            alert(`Day detail coming soon! (${dateKey})`);
+                let currentDayDetailKey = null;
+        let currentDayDetailWeekKey = null;
+
+                function openDayDetail(dateKey) {
+            const date = new Date(dateKey);
+            const weekStart = getWeekStart(date);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = loadData(weekKey);
+            
+            currentDayDetailKey = dateKey;
+            currentDayDetailWeekKey = weekKey;
+            
+            // Set title
+            document.getElementById('day-detail-title').textContent = formatDisplayDate(date);
+            
+            if (!weekData || !weekData[dateKey]) {
+                // No data for this day
+                document.getElementById('day-detail-notes').value = '';
+                document.getElementById('day-detail-tasks').innerHTML = '<p style="color: var(--text-lighter);">No tasks for this day yet.</p>';
+                document.getElementById('day-detail-completion').textContent = '0/0';
+            } else {
+                const dayData = weekData[dateKey];
+                
+                // Set notes
+                document.getElementById('day-detail-notes').value = dayData.dayNotes || '';
+                
+                // Render tasks
+                const completed = dayData.tasks.filter(t => t.completed).length;
+                const total = dayData.tasks.length;
+                document.getElementById('day-detail-completion').textContent = `${completed}/${total}`;
+                
+                if (completed === total && total > 0) {
+                    document.getElementById('day-detail-completion').classList.add('complete');
+                } else {
+                    document.getElementById('day-detail-completion').classList.remove('complete');
+                }
+                
+                let tasksHtml = '';
+                dayData.tasks.forEach(task => {
+                    tasksHtml += `
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--surface-hover); border-radius: 8px; margin-bottom: 8px;">
+                            <div class="checkbox ${task.completed ? 'checked' : ''}" onclick="toggleTaskInModal('${weekKey}', '${dateKey}', ${task.id})"></div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.95rem; color: var(--text); ${task.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${task.text}</div>
+                                <div style="margin-top: 4px;">
+                                    <span class="task-tag tag-${task.category}">${task.category}</span>
+                                    ${task.time ? `<span class="task-time" style="margin-left: 8px;">⏱️ ${task.time}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('day-detail-tasks').innerHTML = tasksHtml;
+            }
+            
+            // Auto-save notes on change
+            const notesTextarea = document.getElementById('day-detail-notes');
+            notesTextarea.onchange = function() {
+                saveDayNotes(currentDayDetailWeekKey, currentDayDetailKey, this.value);
+            };
+            
+            document.getElementById('day-detail-modal').classList.add('active');
+        }
+
+        function toggleTaskInModal(weekKey, dateKey, taskId) {
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            task.completed = !task.completed;
+            saveData(weekKey, weekData);
+            
+            // Re-render modal content
+            openDayDetail(dateKey);
+            
+            // Refresh month view to update completion %
+            renderMonthView();
+        }
+
+        function goToDay() {
+            if (!currentDayDetailKey) return;
+            
+            const date = new Date(currentDayDetailKey);
+            const today = new Date();
+            
+            // Check if it's today
+            if (formatDate(date) === formatDate(today)) {
+                closeModal('day-detail-modal');
+                switchView('today');
+            } else {
+                // Go to week view and show that week
+                const weekStart = getWeekStart(date);
+                const todayWeekStart = getWeekStart(today);
+                
+                if (formatDate(weekStart) === formatDate(todayWeekStart)) {
+                    currentWeekView = 'current';
+                } else if (date > today) {
+                    currentWeekView = 'next';
+                } else {
+                    // It's a past date - just close modal for now
+                    alert('This is a past date. View in Last Week tab or we can build a date picker!');
+                    return;
+                }
+                
+                closeModal('day-detail-modal');
+                document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+                document.querySelectorAll('.nav-item')[1].classList.add('active'); // Week tab
+                switchView('week');
+            }
         }
 
 
