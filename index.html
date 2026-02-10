@@ -439,6 +439,94 @@
             <button class="btn btn-primary" onclick="confirmMoveTask()">Move Task</button>
         </div>
     </div>
+    <div id="edit-routine-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Routine</h2>
+                <button class="modal-close" onclick="closeModal('edit-routine-modal')">×</button>
+            </div>
+            <form onsubmit="saveRoutineEdit(event)">
+                <div class="form-group">
+                    <label class="form-label">Routine Name</label>
+                    <input type="text" class="form-input" id="edit-routine-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Estimate</label>
+                    <input type="text" class="form-input" id="edit-routine-time" placeholder="e.g., 5 min" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="edit-routine-category">
+                        <option value="habit">Daily Habit</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="skincare">Skincare</option>
+                        <option value="hair">Hair Care</option>
+                        <option value="laundry">Laundry</option>
+                        <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Steps (one per line)</label>
+                    <textarea class="form-textarea" id="edit-routine-steps" rows="6" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="create-routine-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Routine</h2>
+                <button class="modal-close" onclick="closeModal('create-routine-modal')">×</button>
+            </div>
+            <form onsubmit="saveNewRoutine(event)">
+                <div class="form-group">
+                    <label class="form-label">Routine Name</label>
+                    <input type="text" class="form-input" id="new-routine-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Estimate</label>
+                    <input type="text" class="form-input" id="new-routine-time" placeholder="e.g., 5 min" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="new-routine-category">
+                        <option value="habit">Daily Habit</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="skincare">Skincare</option>
+                        <option value="hair">Hair Care</option>
+                        <option value="laundry">Laundry</option>
+                        <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Steps (one per line)</label>
+                    <textarea class="form-textarea" id="new-routine-steps" rows="6" placeholder="Step 1&#10;Step 2&#10;Step 3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Routine</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-routine-schedule-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add to Schedule</h2>
+                <button class="modal-close" onclick="closeModal('add-routine-schedule-modal')">×</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Add to which day?</label>
+                <select class="form-select" id="routine-schedule-day">
+                    <option value="today">Today</option>
+                    <option value="tomorrow">Tomorrow</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="confirmAddRoutineToSchedule()">Add to Schedule</button>
+        </div>
+    </div>
 
     <script>
         const ROUTINES_LIBRARY = {
@@ -850,8 +938,15 @@
             document.getElementById('week-content').innerHTML = html;
         }
 
-        function renderRoutinesView() {
-            let html = '';
+                function renderRoutinesView() {
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="openCreateRoutineModal()" style="background: linear-gradient(135deg, var(--emerald), var(--jade));">
+                        ➕ Create New Routine
+                    </button>
+                </div>
+            `;
+            
             for (const [key, routine] of Object.entries(ROUTINES_LIBRARY)) {
                 html += `
                     <div style="background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 15px;">
@@ -862,14 +957,20 @@
                         <div style="margin-bottom: 10px;">
                             <span class="task-tag tag-${routine.category}">${routine.category}</span>
                         </div>
-                        <ul class="task-details-list">
+                        <ul class="task-details-list" style="margin-bottom: 15px;">
                             ${routine.steps.map(step => `<li>${step}</li>`).join('')}
                         </ul>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="task-action-btn-small btn-edit" onclick="openEditRoutineModal('${key}')">✏️ Edit</button>
+                            <button class="task-action-btn-small" style="background: var(--emerald); color: white;" onclick="openAddRoutineToScheduleModal('${key}')">📅 Add to Schedule</button>
+                            <button class="task-action-btn-small btn-delete" onclick="deleteRoutine('${key}')">🗑️ Delete</button>
+                        </div>
                     </div>
                 `;
             }
             document.getElementById('routines-content').innerHTML = html;
         }
+
                 function renderLastWeekView() {
             const today = new Date();
             const lastWeekStart = new Date(today);
@@ -1030,6 +1131,125 @@
                 </div>
             `;
         }
+        let currentEditRoutineKey = null;
+        let currentAddRoutineKey = null;
+
+        function openEditRoutineModal(routineKey) {
+            currentEditRoutineKey = routineKey;
+            const routine = ROUTINES_LIBRARY[routineKey];
+            
+            document.getElementById('edit-routine-name').value = routine.name;
+            document.getElementById('edit-routine-time').value = routine.time;
+            document.getElementById('edit-routine-category').value = routine.category;
+            document.getElementById('edit-routine-steps').value = routine.steps.join('\n');
+            
+            document.getElementById('edit-routine-modal').classList.add('active');
+        }
+
+        function saveRoutineEdit(event) {
+            event.preventDefault();
+            if (!currentEditRoutineKey) return;
+            
+            ROUTINES_LIBRARY[currentEditRoutineKey] = {
+                name: document.getElementById('edit-routine-name').value,
+                time: document.getElementById('edit-routine-time').value,
+                category: document.getElementById('edit-routine-category').value,
+                steps: document.getElementById('edit-routine-steps').value.split('\n').filter(s => s.trim())
+            };
+            
+            saveData('routines-library', ROUTINES_LIBRARY);
+            closeModal('edit-routine-modal');
+            renderRoutinesView();
+            alert('✅ Routine updated!');
+        }
+
+        function openCreateRoutineModal() {
+            document.getElementById('new-routine-name').value = '';
+            document.getElementById('new-routine-time').value = '';
+            document.getElementById('new-routine-category').value = 'habit';
+            document.getElementById('new-routine-steps').value = '';
+            document.getElementById('create-routine-modal').classList.add('active');
+        }
+
+        function saveNewRoutine(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('new-routine-name').value;
+            const key = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            
+            ROUTINES_LIBRARY[key] = {
+                name: name,
+                time: document.getElementById('new-routine-time').value,
+                category: document.getElementById('new-routine-category').value,
+                steps: document.getElementById('new-routine-steps').value.split('\n').filter(s => s.trim())
+            };
+            
+            saveData('routines-library', ROUTINES_LIBRARY);
+            closeModal('create-routine-modal');
+            renderRoutinesView();
+            alert('✅ New routine created!');
+        }
+
+        function deleteRoutine(routineKey) {
+            if (!confirm(`Delete "${ROUTINES_LIBRARY[routineKey].name}"? This cannot be undone.`)) return;
+            
+            delete ROUTINES_LIBRARY[routineKey];
+            saveData('routines-library', ROUTINES_LIBRARY);
+            renderRoutinesView();
+            alert('✅ Routine deleted!');
+        }
+
+        function openAddRoutineToScheduleModal(routineKey) {
+            currentAddRoutineKey = routineKey;
+            document.getElementById('add-routine-schedule-modal').classList.add('active');
+        }
+
+        function confirmAddRoutineToSchedule() {
+            if (!currentAddRoutineKey) return;
+            
+            const routine = ROUTINES_LIBRARY[currentAddRoutineKey];
+            const when = document.getElementById('routine-schedule-day').value;
+            
+            const today = new Date();
+            let targetDate;
+            
+            if (when === 'today') {
+                targetDate = today;
+            } else {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 1);
+            }
+            
+            const weekStart = getWeekStart(targetDate);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const dateKey = formatDate(targetDate);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: routine.name,
+                category: routine.category,
+                routine: currentAddRoutineKey,
+                completed: false,
+                notes: '',
+                custom: true
+            });
+            
+            saveData(weekKey, weekData);
+            closeModal('add-routine-schedule-modal');
+            alert(`✅ Added "${routine.name}" to ${when}!`);
+            
+            if (when === 'today') {
+                renderTodayView();
+            }
+        }
+
+        function loadRoutinesLibrary() {
+            const saved = loadData('routines-library');
+            if (saved) {
+                Object.assign(ROUTINES_LIBRARY, saved);
+            }
+        }
 
         function switchView(view) {
             currentView = view;
@@ -1127,7 +1347,11 @@
             }
         }
 
-        function init() { renderTodayView(); }
+    function init() {
+            loadRoutinesLibrary();
+            renderTodayView();
+        }
+
         init();
         setInterval(() => {
             const now = new Date();
