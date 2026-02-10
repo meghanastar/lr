@@ -10,16 +10,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        :root {
-            --bg-gradient: linear-gradient(135deg, #fef6f7 0%, #f9f3f5 50%, #fdf8f9 100%);
-            --primary: #e8a5b5; --primary-light: #f5d4dd; --primary-dark: #d48899;
-            --secondary: #b5d5e8; --accent: #e8d5b5;
-            --text: #2d2424; --text-light: #6b5f5f; --text-lighter: #9b8f8f;
-            --success: #b5e8c5; --surface: #ffffff; --surface-hover: #fefbfc; --border: #f0e8eb;
-            --shadow-sm: 0 2px 8px rgba(232, 165, 181, 0.08);
-            --shadow-md: 0 4px 16px rgba(232, 165, 181, 0.12);
-            --shadow-lg: 0 8px 32px rgba(232, 165, 181, 0.16);
+                :root {
+            --bg-gradient: linear-gradient(135deg, #fdfcfb 0%, #f9f8f6 50%, #fefefe 100%);
+            --primary: #5dade2;
+            --primary-light: #aed6f1;
+            --primary-dark: #2e86c1;
+            --secondary: #48c9b0;
+            --accent: #af7ac5;
+            --ruby: #e74c3c;
+            --gold: #f39c12;
+            --text: #2c3e50;
+            --text-light: #5d6d7e;
+            --text-lighter: #95a5a6;
+            --success: #48c9b0;
+            --surface: #ffffff;
+            --surface-hover: #f8f9fa;
+            --border: #d5dbdb;
+            --shadow-sm: 0 2px 8px rgba(93, 173, 226, 0.08);
+            --shadow-md: 0 4px 16px rgba(93, 173, 226, 0.12);
+            --shadow-lg: 0 8px 32px rgba(93, 173, 226, 0.16);
         }
+
         body { font-family: 'DM Sans', sans-serif; background: var(--bg-gradient); color: var(--text); line-height: 1.6; overflow-x: hidden; min-height: 100vh; padding-bottom: 80px; }
         .app-header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--border); padding: 20px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
         .header-content { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
