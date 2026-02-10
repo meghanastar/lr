@@ -230,7 +230,82 @@
         /* Animations */
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
+                /* Monthly Calendar */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
         
+        .calendar-day-header {
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-light);
+            padding: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .calendar-day {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            min-height: 100px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .calendar-day:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .calendar-day.today {
+            border-color: var(--primary);
+            background: var(--primary-lighter);
+        }
+        
+        .calendar-day.other-month {
+            opacity: 0.4;
+        }
+        
+        .calendar-day-number {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .calendar-day-tasks {
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+        
+        .calendar-completion {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .calendar-completion.high {
+            background: var(--emerald-light);
+            color: var(--emerald-dark);
+        }
+        
+        .calendar-completion.medium {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
+        .calendar-completion.low {
+            background: var(--ruby-light);
+            color: var(--ruby-dark);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -315,6 +390,14 @@
             </div>
         </div>
     </div>
+            <div id="month-view" class="view-content hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="icon-btn" onclick="previousMonth()">◀</button>
+                <h2 id="month-title" style="font-family: 'Playfair Display', serif; font-size: 1.8rem;">February 2026</h2>
+                <button class="icon-btn" onclick="nextMonth()">▶</button>
+            </div>
+            <div id="month-calendar"></div>
+        </div>
 
             <div id="lastweek-view" class="view-content hidden">
             <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">⏮️ Last Week</h2>
@@ -348,6 +431,10 @@
         <button class="nav-item" onclick="switchView('week')">
             <div class="nav-icon">📆</div>
             <div class="nav-label">Week</div>
+        </button>
+        <button class="nav-item" onclick="switchView('month')">
+            <div class="nav-icon">🗓️</div>
+            <div class="nav-label">Month</div>
         </button>
         <button class="nav-item" onclick="switchView('lastweek')">
             <div class="nav-icon">⏮️</div>
@@ -1565,8 +1652,107 @@
             alert(`✅ Added "${task.text}" to your recurring tasks!`);
         }
 
+        let currentMonthView = new Date();
 
-        function switchView(view) {
+        function renderMonthView() {
+            const year = currentMonthView.getFullYear();
+            const month = currentMonthView.getMonth();
+            
+            // Update title
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('month-title').textContent = `${monthNames[month]} ${year}`;
+            
+            // Get first and last day of month
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            
+            // Get day of week for first day (0 = Sunday)
+            const firstDayOfWeek = firstDay.getDay();
+            
+            // Build calendar
+            let html = '<div class="calendar-grid">';
+            
+            // Day headers
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                html += `<div class="calendar-day-header">${day}</div>`;
+            });
+            
+            // Previous month days
+            const prevMonthLastDay = new Date(year, month, 0).getDate();
+            for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                const day = prevMonthLastDay - i;
+                html += `<div class="calendar-day other-month"><div class="calendar-day-number">${day}</div></div>`;
+            }
+            
+            // Current month days
+            const today = new Date();
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const date = new Date(year, month, day);
+                const dateKey = formatDate(date);
+                const isToday = dateKey === formatDate(today);
+                
+                // Get week data for this day
+                const weekStart = getWeekStart(date);
+                const weekKey = getWeekKey(weekStart);
+                const weekData = loadData(weekKey);
+                
+                let tasksInfo = '';
+                let completionBadge = '';
+                
+                if (weekData && weekData[dateKey]) {
+                    const dayData = weekData[dateKey];
+                    const completed = dayData.tasks.filter(t => t.completed).length;
+                    const total = dayData.tasks.length;
+                    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                    
+                    tasksInfo = `<div class="calendar-day-tasks">${completed}/${total} tasks</div>`;
+                    
+                    let completionClass = 'low';
+                    if (percentage >= 80) completionClass = 'high';
+                    else if (percentage >= 50) completionClass = 'medium';
+                    
+                    if (total > 0) {
+                        completionBadge = `<div class="calendar-completion ${completionClass}">${percentage}%</div>`;
+                    }
+                }
+                
+                html += `
+                    <div class="calendar-day ${isToday ? 'today' : ''}" onclick="openDayDetail('${dateKey}')">
+                        <div class="calendar-day-number">${day}</div>
+                        ${tasksInfo}
+                        ${completionBadge}
+                    </div>
+                `;
+            }
+            
+            // Next month days
+            const remainingCells = 42 - (firstDayOfWeek + lastDay.getDate());
+            for (let day = 1; day <= remainingCells; day++) {
+                html += `<div class="calendar-day other-month"><div class="calendar-day-number">${day}</div></div>`;
+            }
+            
+            html += '</div>';
+            document.getElementById('month-calendar').innerHTML = html;
+        }
+
+        function previousMonth() {
+            currentMonthView.setMonth(currentMonthView.getMonth() - 1);
+            renderMonthView();
+        }
+
+        function nextMonth() {
+            currentMonthView.setMonth(currentMonthView.getMonth() + 1);
+            renderMonthView();
+        }
+
+        function openDayDetail(dateKey) {
+            // For now, just alert - we'll build the detail view in next step
+            alert(`Day detail coming soon! (${dateKey})`);
+        }
+
+
+    function switchView(view) {
             currentView = view;
             document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
             document.getElementById(`${view}-view`).classList.remove('hidden');
@@ -1576,8 +1762,10 @@
             if (view === 'routines') renderRoutinesView();
             else if (view === 'lastweek') renderLastWeekView();
             else if (view === 'metrics') renderMetricsView();
+            else if (view === 'month') renderMonthView();
             else renderCurrentView();
         }
+
 
 
         function showWeek(week) {
