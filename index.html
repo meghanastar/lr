@@ -308,24 +308,30 @@
         </div>
     </div>
 
-    <div class="bottom-nav">
-        <button class="nav-item active" onclick="switchView('today')">
-            <div class="nav-icon">📅</div>
-            <div class="nav-label">Today</div>
-        </button>
-        <button class="nav-item" onclick="switchView('week')">
-            <div class="nav-icon">📆</div>
-            <div class="nav-label">Week</div>
-        </button>
-        <button class="nav-item" onclick="switchView('routines')">
-            <div class="nav-icon">📖</div>
-            <div class="nav-label">Routines</div>
-        </button>
-        <button class="nav-item" onclick="switchView('settings')">
-            <div class="nav-icon">⚙️</div>
-            <div class="nav-label">Settings</div>
-        </button>
-    </div>
+            <div id="lastweek-view" class="view-content hidden">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">⏮️ Last Week</h2>
+            <div id="lastweek-content"></div>
+        </div>
+
+        <div id="metrics-view" class="view-content hidden">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 30px;">📊 Your Metrics</h2>
+            
+            <div class="day-section" style="background: linear-gradient(135deg, var(--emerald-lighter), var(--primary-lighter)); padding: 25px;">
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 15px;">🔥 Current Streak</h3>
+                <div style="font-size: 3rem; font-weight: 700; color: var(--emerald); text-align: center;" id="streak-count">0</div>
+                <div style="text-align: center; color: var(--text-light); margin-top: 10px;">days in a row</div>
+            </div>
+
+            <div class="day-section">
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 15px;">📈 This Week</h3>
+                <div id="week-stats"></div>
+            </div>
+
+            <div class="day-section">
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 15px;">🏆 All Time</h3>
+                <div id="alltime-stats"></div>
+            </div>
+        </div>
 
     <div id="add-task-modal" class="modal">
         <div class="modal-content">
@@ -838,6 +844,166 @@
             }
             document.getElementById('routines-content').innerHTML = html;
         }
+                function renderLastWeekView() {
+            const today = new Date();
+            const lastWeekStart = new Date(today);
+            lastWeekStart.setDate(today.getDate() - 7);
+            const weekStart = getWeekStart(lastWeekStart);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = loadData(weekKey);
+
+            if (!weekData) {
+                document.getElementById('lastweek-content').innerHTML = '<div class="day-section"><p>No data from last week yet!</p></div>';
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(weekStart);
+                dayDate.setDate(weekStart.getDate() + i);
+                const dateKey = formatDate(dayDate);
+                const dayData = weekData[dateKey];
+
+                if (!dayData) continue;
+
+                const completed = dayData.tasks.filter(t => t.completed).length;
+                const total = dayData.tasks.length;
+                const isComplete = completed === total && total > 0;
+
+                html += `
+                    <div class="day-section">
+                        <div class="day-header">
+                            <div class="day-title-group">
+                                <span class="day-title">${dayData.dayName.charAt(0).toUpperCase() + dayData.dayName.slice(1)}</span>
+                                <span class="day-date">${formatShortDate(dayDate)}</span>
+                            </div>
+                            <div class="day-stats">
+                                <span class="completion-badge ${isComplete ? 'complete' : ''}">${completed}/${total}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('lastweek-content').innerHTML = html || '<div class="day-section"><p>No data available</p></div>';
+        }
+
+        function calculateStreak() {
+            let streak = 0;
+            const today = new Date();
+            
+            for (let i = 0; i < 365; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() - i);
+                const weekStart = getWeekStart(checkDate);
+                const weekKey = getWeekKey(weekStart);
+                const weekData = loadData(weekKey);
+                
+                if (!weekData) break;
+                
+                const dateKey = formatDate(checkDate);
+                const dayData = weekData[dateKey];
+                
+                if (!dayData || !dayData.tasks.length) break;
+                
+                const completed = dayData.tasks.filter(t => t.completed).length;
+                const total = dayData.tasks.length;
+                const percentage = (completed / total) * 100;
+                
+                if (percentage >= 80) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        function renderMetricsView() {
+            // Current Streak
+            const streak = calculateStreak();
+            document.getElementById('streak-count').textContent = streak;
+
+            // This Week Stats
+            const weekStart = getWeekStart();
+            const weekKey = getWeekKey(weekStart);
+            const weekData = loadData(weekKey);
+            
+            let weekCompleted = 0;
+            let weekTotal = 0;
+            
+            if (weekData) {
+                for (let i = 0; i < 7; i++) {
+                    const dayDate = new Date(weekStart);
+                    dayDate.setDate(weekStart.getDate() + i);
+                    const dateKey = formatDate(dayDate);
+                    const dayData = weekData[dateKey];
+                    
+                    if (dayData) {
+                        weekCompleted += dayData.tasks.filter(t => t.completed).length;
+                        weekTotal += dayData.tasks.length;
+                    }
+                }
+            }
+            
+            const weekPercentage = weekTotal > 0 ? Math.round((weekCompleted / weekTotal) * 100) : 0;
+            
+            document.getElementById('week-stats').innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 600;">Completion Rate</span>
+                        <span style="color: var(--emerald); font-weight: 700;">${weekPercentage}%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: ${weekPercentage}%"></div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--surface-hover); border-radius: 12px;">
+                    <div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">${weekCompleted}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-lighter);">Tasks completed</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--text-light);">${weekTotal}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-lighter);">Total tasks</div>
+                    </div>
+                </div>
+            `;
+
+            // All Time Stats
+            let allTimeCompleted = 0;
+            let totalDays = 0;
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('week-')) {
+                    const data = loadData(key);
+                    if (data) {
+                        for (const dateKey in data) {
+                            const dayData = data[dateKey];
+                            if (dayData && dayData.tasks) {
+                                allTimeCompleted += dayData.tasks.filter(t => t.completed).length;
+                                totalDays++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            document.getElementById('alltime-stats').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="text-align: center; padding: 20px; background: var(--amethyst-lighter); border-radius: 12px;">
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--amethyst);">${allTimeCompleted}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 5px;">Total Tasks<br>Completed</div>
+                    </div>
+                    <div style="text-align: center; padding: 20px; background: var(--gold-light); border-radius: 12px;">
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--gold);">${totalDays}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-light); margin-top: 5px;">Days<br>Tracked</div>
+                    </div>
+                </div>
+            `;
+        }
 
         function switchView(view) {
             currentView = view;
@@ -847,8 +1013,11 @@
             event.currentTarget.classList.add('active');
             
             if (view === 'routines') renderRoutinesView();
+            else if (view === 'lastweek') renderLastWeekView();
+            else if (view === 'metrics') renderMetricsView();
             else renderCurrentView();
         }
+
 
         function showWeek(week) {
             currentWeekView = week;
