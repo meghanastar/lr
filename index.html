@@ -6,624 +6,130 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Life Reset">
-    <title>✨ Life Reset</title>
+    <title>✨ Life Reset v2</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root {
             --bg-gradient: linear-gradient(135deg, #fef6f7 0%, #f9f3f5 50%, #fdf8f9 100%);
-            --primary: #e8a5b5;
-            --primary-light: #f5d4dd;
-            --primary-dark: #d48899;
-            --secondary: #b5d5e8;
-            --accent: #e8d5b5;
-            --text: #2d2424;
-            --text-light: #6b5f5f;
-            --text-lighter: #9b8f8f;
-            --success: #b5e8c5;
-            --surface: #ffffff;
-            --surface-hover: #fefbfc;
-            --border: #f0e8eb;
+            --primary: #e8a5b5; --primary-light: #f5d4dd; --primary-dark: #d48899;
+            --secondary: #b5d5e8; --accent: #e8d5b5;
+            --text: #2d2424; --text-light: #6b5f5f; --text-lighter: #9b8f8f;
+            --success: #b5e8c5; --surface: #ffffff; --surface-hover: #fefbfc; --border: #f0e8eb;
             --shadow-sm: 0 2px 8px rgba(232, 165, 181, 0.08);
             --shadow-md: 0 4px 16px rgba(232, 165, 181, 0.12);
             --shadow-lg: 0 8px 32px rgba(232, 165, 181, 0.16);
         }
-
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: var(--bg-gradient);
-            color: var(--text);
-            line-height: 1.6;
-            overflow-x: hidden;
-            min-height: 100vh;
-            padding-bottom: 80px;
-        }
-
-        .app-header {
-            background: rgba(255, 255, 255, 0.95);
-            border-bottom: 1px solid var(--border);
-            padding: 20px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .header-content {
-            max-width: 800px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .app-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .icon-btn {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 1.2rem;
-        }
-
-        .icon-btn:hover {
-            background: var(--primary-light);
-            border-color: var(--primary);
-            transform: scale(1.05);
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .today-card {
-            background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3));
-            border-radius: 24px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: var(--shadow-lg);
-            animation: fadeInUp 0.6s ease;
-        }
-
-        .today-date {
-            font-family: 'Playfair Display', serif;
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-
-        .today-subtitle {
-            color: var(--text-light);
-            font-size: 1rem;
-            margin-bottom: 20px;
-        }
-
-        .progress-bar-container {
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 12px;
-            height: 12px;
-            overflow: hidden;
-            margin-bottom: 12px;
-        }
-
-        .progress-bar {
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            height: 100%;
-            border-radius: 12px;
-            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }
-
-        .progress-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            animation: shimmer 2s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .progress-text {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            text-align: center;
-        }
-
-        .view-selector {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 25px;
-            background: var(--surface);
-            padding: 6px;
-            border-radius: 16px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .view-btn {
-            flex: 1;
-            background: none;
-            border: none;
-            padding: 10px 16px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--text-lighter);
-            cursor: pointer;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .view-btn.active {
-            background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3));
-            color: var(--primary-dark);
-        }
-
-        .day-section {
-            background: var(--surface);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-sm);
-            animation: fadeInUp 0.4s ease;
-            animation-fill-mode: backwards;
-        }
-
-        .day-section:nth-child(1) { animation-delay: 0.05s; }
-        .day-section:nth-child(2) { animation-delay: 0.1s; }
-        .day-section:nth-child(3) { animation-delay: 0.15s; }
-        .day-section:nth-child(4) { animation-delay: 0.2s; }
-        .day-section:nth-child(5) { animation-delay: 0.25s; }
-        .day-section:nth-child(6) { animation-delay: 0.3s; }
-        .day-section:nth-child(7) { animation-delay: 0.35s; }
-
-        .day-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .day-title-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .day-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .day-date {
-            font-size: 0.85rem;
-            color: var(--text-lighter);
-        }
-
-        .day-stats {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.85rem;
-        }
-
-        .completion-badge {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-weight: 500;
-        }
-
-        .completion-badge.complete {
-            background: var(--success);
-            color: #2d5d3d;
-        }
-
-        .task-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .task-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 12px;
-            background: var(--surface-hover);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .task-item:hover {
-            background: var(--surface);
-            box-shadow: var(--shadow-sm);
-            transform: translateY(-2px);
-        }
-
-        .task-item.completed {
-            opacity: 0.6;
-        }
-
-        .task-item.completed .task-text {
-            text-decoration: line-through;
-            color: var(--text-lighter);
-        }
-
-        .checkbox {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--primary);
-            border-radius: 50%;
-            flex-shrink: 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            margin-top: 2px;
-        }
-
-        .checkbox:hover {
-            background: var(--primary-light);
-            transform: scale(1.1);
-        }
-
-        .checkbox.checked {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-
-        .checkbox.checked::after {
-            content: '✓';
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .task-content {
-            flex: 1;
-        }
-
-        .task-text {
-            font-size: 1rem;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-
-        .task-meta {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .task-tag {
-            font-size: 0.75rem;
-            padding: 3px 10px;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg-gradient); color: var(--text); line-height: 1.6; overflow-x: hidden; min-height: 100vh; padding-bottom: 80px; }
+        .app-header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--border); padding: 20px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-content { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .app-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .icon-btn { background: var(--surface); border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; font-size: 1.2rem; }
+        .icon-btn:hover { background: var(--primary-light); border-color: var(--primary); transform: scale(1.05); }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .today-card { background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3)); border-radius: 24px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-lg); animation: fadeInUp 0.6s ease; }
+        .today-date { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+        .today-subtitle { color: var(--text-light); font-size: 1rem; margin-bottom: 20px; }
+        .progress-bar-container { background: rgba(255, 255, 255, 0.6); border-radius: 12px; height: 12px; overflow: hidden; margin-bottom: 12px; }
+        .progress-bar { background: linear-gradient(90deg, var(--primary), var(--secondary)); height: 100%; border-radius: 12px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        .progress-bar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .progress-text { font-size: 0.9rem; color: var(--text-light); text-align: center; }
+        .view-selector { display: flex; gap: 8px; margin-bottom: 25px; background: var(--surface); padding: 6px; border-radius: 16px; box-shadow: var(--shadow-sm); }
+        .view-btn { flex: 1; background: none; border: none; padding: 10px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; color: var(--text-lighter); cursor: pointer; border-radius: 12px; transition: all 0.3s ease; }
+        .view-btn.active { background: linear-gradient(135deg, var(--primary-light), rgba(181, 213, 232, 0.3)); color: var(--primary-dark); }
+        .day-section { background: var(--surface); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); animation: fadeInUp 0.4s ease; animation-fill-mode: backwards; }
+        .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .day-title-group { display: flex; align-items: center; gap: 10px; }
+        .day-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 600; color: var(--text); }
+        .day-date { font-size: 0.85rem; color: var(--text-lighter); }
+        .day-stats { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+        .completion-badge { background: var(--primary-light); color: var(--primary-dark); padding: 4px 12px; border-radius: 12px; font-weight: 500; }
+        .completion-badge.complete { background: var(--success); color: #2d5d3d; }
+        .daily-notes { background: var(--surface-hover); border: 2px dashed var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .daily-notes-title { font-weight: 600; color: var(--text); margin-bottom: 8px; font-size: 0.9rem; }
+        .daily-notes-textarea { width: 100%; min-height: 60px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; resize: vertical; transition: all 0.3s ease; }
+        .daily-notes-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .task-list { display: flex; flex-direction: column; gap: 10px; }
+        .task-item-wrapper { border-radius: 12px; overflow: hidden; }
+        .task-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--surface-hover); border: 1px solid var(--border); transition: all 0.3s ease; cursor: pointer; }
+        .task-item:hover { background: var(--surface); box-shadow: var(--shadow-sm); }
+        .task-item.completed { opacity: 0.6; }
+        .task-item.completed .task-text { text-decoration: line-through; color: var(--text-lighter); }
+        .task-item.expanded { border-bottom: none; border-radius: 12px 12px 0 0; }
+        .checkbox { width: 24px; height: 24px; border: 2px solid var(--primary); border-radius: 50%; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; margin-top: 2px; }
+        .checkbox:hover { background: var(--primary-light); transform: scale(1.1); }
+        .checkbox.checked { background: var(--primary); border-color: var(--primary); }
+        .checkbox.checked::after { content: '✓'; color: white; font-size: 14px; font-weight: bold; }
+        .task-content { flex: 1; }
+        .task-header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .task-text { font-size: 1rem; color: var(--text); margin-bottom: 6px; }
+        .task-expand-icon { font-size: 0.8rem; color: var(--text-lighter); transition: transform 0.3s ease; }
+        .task-item.expanded .task-expand-icon { transform: rotate(180deg); }
+        .task-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .task-tag { font-size: 0.75rem; padding: 3px 10px; border-radius: 8px; font-weight: 500; }
         .tag-habit { background: #f0e4f8; color: #6d4d8b; }
         .tag-cleaning { background: #f8e4ef; color: #8b4d6f; }
         .tag-skincare { background: #e4f1f8; color: #4d6f8b; }
         .tag-hair { background: #f0ebe4; color: #6f5d4d; }
         .tag-laundry { background: #ebf0e4; color: #5d6f4d; }
         .tag-special { background: #f8f0e4; color: #8b7d4d; }
-
-        .task-time {
-            font-size: 0.75rem;
-            color: var(--text-lighter);
-        }
-
-        .add-task-btn {
-            width: 100%;
-            padding: 12px;
-            background: var(--surface-hover);
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            color: var(--text-lighter);
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .add-task-btn:hover {
-            background: var(--primary-light);
-            border-color: var(--primary);
-            color: var(--primary-dark);
-        }
-
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            border-top: 1px solid var(--border);
-            padding: 10px;
-            display: flex;
-            justify-content: space-around;
-            box-shadow: 0 -4px 16px rgba(232, 165, 181, 0.08);
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .nav-item {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 8px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-radius: 12px;
-        }
-
-        .nav-item:hover {
-            background: var(--surface-hover);
-        }
-
-        .nav-item.active {
-            background: var(--primary-light);
-        }
-
-        .nav-icon {
-            font-size: 1.5rem;
-            transition: color 0.3s ease;
-        }
-
-        .nav-item .nav-icon {
-            color: var(--text-lighter);
-        }
-
-        .nav-item.active .nav-icon {
-            color: var(--primary-dark);
-        }
-
-        .nav-label {
-            font-size: 0.7rem;
-            color: var(--text-lighter);
-        }
-
-        .nav-item.active .nav-label {
-            color: var(--primary-dark);
-            font-weight: 500;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--surface);
-            border-radius: 24px;
-            padding: 30px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: var(--shadow-lg);
-            animation: modalSlideUp 0.4s ease;
-        }
-
-        @keyframes modalSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.6rem;
-            font-weight: 600;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            color: var(--text-lighter);
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-
-        .modal-close:hover {
-            background: var(--surface-hover);
-            color: var(--text);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--text);
-            margin-bottom: 8px;
-        }
-
-        .form-input,
-        .form-textarea,
-        .form-select {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 1rem;
-            color: var(--text);
-            background: var(--surface);
-            transition: all 0.3s ease;
-        }
-
-        .form-input:focus,
-        .form-textarea:focus,
-        .form-select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            width: 100%;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .settings-section {
-            margin-bottom: 30px;
-        }
-
-        .settings-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-        }
-
-        .info-box {
-            background: var(--primary-light);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            color: var(--text);
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
+        .task-time { font-size: 0.75rem; color: var(--text-lighter); }
+        .task-details { background: white; border: 1px solid var(--border); border-top: none; padding: 20px; border-radius: 0 0 12px 12px; display: none; animation: slideDown 0.3s ease; }
+        .task-details.active { display: block; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .task-details-section { margin-bottom: 15px; }
+        .task-details-section:last-child { margin-bottom: 0; }
+        .task-details-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 8px; }
+        .task-details-content { color: var(--text-light); font-size: 0.9rem; line-height: 1.6; }
+        .task-details-list { list-style: none; padding-left: 0; }
+        .task-details-list li { padding: 4px 0; padding-left: 20px; position: relative; }
+        .task-details-list li::before { content: '•'; position: absolute; left: 5px; color: var(--primary); }
+        .task-notes-input { width: 100%; min-height: 80px; border: 2px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; resize: vertical; transition: all 0.3s ease; }
+        .task-notes-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .task-actions-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .task-action-btn-small { padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
+        .btn-edit { background: var(--secondary); color: white; }
+        .btn-move { background: var(--accent); color: white; }
+        .btn-delete { background: #e8a5a5; color: white; }
+        .task-action-btn-small:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+        .add-task-btn { width: 100%; padding: 12px; background: var(--surface-hover); border: 2px dashed var(--border); border-radius: 12px; color: var(--text-lighter); font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .add-task-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary-dark); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border); padding: 10px; display: flex; justify-content: space-around; box-shadow: 0 -4px 16px rgba(232, 165, 181, 0.08); z-index: 100; backdrop-filter: blur(10px); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; background: none; border: none; cursor: pointer; transition: all 0.3s ease; border-radius: 12px; }
+        .nav-item:hover { background: var(--surface-hover); }
+        .nav-item.active { background: var(--primary-light); }
+        .nav-icon { font-size: 1.5rem; transition: color 0.3s ease; }
+        .nav-item .nav-icon { color: var(--text-lighter); }
+        .nav-item.active .nav-icon { color: var(--primary-dark); }
+        .nav-label { font-size: 0.7rem; color: var(--text-lighter); }
+        .nav-item.active .nav-label { color: var(--primary-dark); font-weight: 500; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--surface); border-radius: 24px; padding: 30px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modalSlideUp 0.4s ease; }
+        @keyframes modalSlideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 2rem; color: var(--text-lighter); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s ease; }
+        .modal-close:hover { background: var(--surface-hover); color: var(--text); }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 0.9rem; font-weight: 500; color: var(--text); margin-bottom: 8px; }
+        .form-input, .form-textarea, .form-select { width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; color: var(--text); background: var(--surface); transition: all 0.3s ease; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 165, 181, 0.1); }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .btn { padding: 12px 24px; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; width: 100%; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .settings-section { margin-bottom: 30px; }
+        .settings-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 600; margin-bottom: 15px; }
+        .info-box { background: var(--primary-light); border-radius: 12px; padding: 15px; margin-bottom: 20px; color: var(--text); font-size: 0.9rem; line-height: 1.5; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-
-            .today-card {
-                padding: 20px;
-            }
-
-            .today-date {
-                font-size: 1.6rem;
-            }
-
-            .day-title {
-                font-size: 1.2rem;
-            }
+            .container { padding: 15px; }
+            .today-card { padding: 20px; }
+            .today-date { font-size: 1.6rem; }
+            .day-title { font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -647,7 +153,6 @@
                 </div>
                 <div class="progress-text" id="progress-text">0 of 0 tasks complete</div>
             </div>
-
             <div id="today-tasks"></div>
         </div>
 
@@ -659,6 +164,11 @@
             <div id="week-content"></div>
         </div>
 
+        <div id="routines-view" class="view-content hidden">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">📖 Routines Library</h2>
+            <div id="routines-content"></div>
+        </div>
+
         <div id="settings-view" class="view-content hidden">
             <div class="settings-section">
                 <h2 class="settings-title">About Your App</h2>
@@ -666,9 +176,9 @@
                     <strong>How it works:</strong><br>
                     • Your weekly routine auto-generates new weeks<br>
                     • Check off tasks as you complete them<br>
-                    • Add custom tasks for specific days<br>
+                    • Click tasks to see details & add notes<br>
                     • Your progress saves automatically<br><br>
-                    <strong>Data Storage:</strong> Everything is saved in your browser. Use the same device/browser to see your progress!
+                    <strong>Data Storage:</strong> Everything is saved in your browser!
                 </div>
             </div>
 
@@ -679,23 +189,15 @@
                     Export: Download a backup file<br>
                     Import: Restore from a backup file
                 </div>
-                <button class="btn btn-primary" onclick="exportData()" style="margin-bottom: 10px;">
-                    💾 Export Backup
-                </button>
-                <button class="btn btn-primary" onclick="document.getElementById('import-file').click()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--secondary), #8fb5cc);">
-                    📂 Import Backup
-                </button>
+                <button class="btn btn-primary" onclick="exportData()" style="margin-bottom: 10px;">💾 Export Backup</button>
+                <button class="btn btn-primary" onclick="document.getElementById('import-file').click()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--secondary), #8fb5cc);">📂 Import Backup</button>
                 <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display: none;">
             </div>
 
             <div class="settings-section">
                 <h2 class="settings-title">Quick Actions</h2>
-                <button class="btn btn-primary" onclick="generateNewWeek()" style="margin-bottom: 10px;">
-                    🔄 Generate New Week
-                </button>
-                <button class="btn btn-primary" onclick="resetApp()" style="background: linear-gradient(135deg, #d48899, #b87080);">
-                    ⚠️ Reset All Data
-                </button>
+                <button class="btn btn-primary" onclick="generateNewWeek()" style="margin-bottom: 10px;">🔄 Generate New Week</button>
+                <button class="btn btn-primary" onclick="resetApp()" style="background: linear-gradient(135deg, #d48899, #b87080);">⚠️ Reset All Data</button>
             </div>
         </div>
     </div>
@@ -708,6 +210,10 @@
         <button class="nav-item" onclick="switchView('week')">
             <div class="nav-icon">📆</div>
             <div class="nav-label">Week</div>
+        </button>
+        <button class="nav-item" onclick="switchView('routines')">
+            <div class="nav-icon">📖</div>
+            <div class="nav-label">Routines</div>
         </button>
         <button class="nav-item" onclick="switchView('settings')">
             <div class="nav-icon">⚙️</div>
@@ -746,70 +252,132 @@
         </div>
     </div>
 
+    <div id="edit-task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Task</h2>
+                <button class="modal-close" onclick="closeModal('edit-task-modal')">×</button>
+            </div>
+            <form onsubmit="saveTaskEdit(event)">
+                <div class="form-group">
+                    <label class="form-label">Task Name</label>
+                    <input type="text" class="form-input" id="edit-task-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="edit-task-category">
+                        <option value="habit">Daily Habit</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="skincare">Skincare</option>
+                        <option value="hair">Hair Care</option>
+                        <option value="laundry">Laundry</option>
+                        <option value="special">Special</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time (optional)</label>
+                    <input type="time" class="form-input" id="edit-task-time">
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="move-task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Move Task</h2>
+                <button class="modal-close" onclick="closeModal('move-task-modal')">×</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Move to which day?</label>
+                <select class="form-select" id="move-task-day">
+                    <option value="">Select a day...</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="confirmMoveTask()">Move Task</button>
+        </div>
+    </div>
+
     <script>
+        const ROUTINES_LIBRARY = {
+            'make-bed': { name: 'Make Your Bed', time: '2 min', category: 'habit', steps: ['Pull covers up smooth', 'Fluff pillows', 'Takes 90 seconds', 'Sets the tone for your day'] },
+            'dishes': { name: 'Dishes Protocol', time: '5 min', category: 'habit', steps: ['After every meal/snack', 'Immediately to sink OR dishwasher', 'No exceptions, no "later"', 'Wipe down counter/table', 'Future you will thank you!'] },
+            'bathroom-wipe': { name: 'Bathroom Sink Wipe', time: '30 sec', category: 'habit', steps: ['Rinse electric toothbrush thoroughly', 'Wipe toothbrush handle with hand towel', 'Use same damp towel to swipe the sink', 'Takes 30 seconds max', 'Prevents gross buildup'] },
+            'evening-tidy': { name: '10-Minute Evening Tidy', time: '10 min', category: 'habit', steps: ['Walk through apartment with "doesn\'t belong here" eyes', 'Return items to their homes', 'Clear kitchen counters', 'Quick dish check (catch any strays)', 'Lay out tomorrow\'s outfit', 'Check that bathroom is tidy', 'Sets you up for peaceful morning'] },
+            'retinol': { name: 'Retinol Night Routine', time: '20 min', category: 'skincare', steps: ['Remove ALL makeup thoroughly (oil cleanser/micellar water)', 'Cleanse with regular face wash', 'Pat dry gently', 'WAIT 5-10 minutes (skin must be completely dry!)', 'Apply retinol (pea-sized amount)', 'Avoid eye area', 'WAIT another 10-15 minutes', 'Moisturizer + eye cream', 'NO vitamin C this night', 'NO other actives'] },
+            'vitamin-c': { name: 'Vitamin C Night', time: '15 min', category: 'skincare', steps: ['Remove makeup thoroughly', 'Cleanse', 'Toner', 'Vitamin C serum (wait a few minutes)', 'Other serums if you have them', 'Moisturizer + eye cream', 'Not on retinol nights!'] },
+            'hydrating-mask': { name: 'Hydrating Face Mask', time: '20 min', category: 'skincare', steps: ['Do this before your evening routine', 'Cleanse face first', 'Apply hydrating mask', 'Leave on 10-20 min', 'Relax! Read, watch something, vibe', 'Remove/rinse', 'Continue with evening routine + Vitamin C'] },
+            'hair-wash': { name: 'Hair Wash Day', time: '30-40 min', category: 'hair', steps: ['Rinse body', 'Shampoo hair (focus scalp not ends)', 'Condition (mid-lengths to ends, avoid roots)', 'Let sit while washing body', 'Rinse thoroughly', 'Pat hair with towel (don\'t rub)', 'Moisturize body', 'Proceed to styling'] },
+            'kitchen-clean': { name: 'Kitchen Deep Clean', time: '30-45 min', category: 'cleaning', steps: ['Wipe all counters and backsplash', 'Clean stovetop thoroughly', 'Microwave inside and out', 'Scrub sink, shine faucet', 'Sweep and mop floors', 'Move and shake rugs', 'Take out trash'] },
+            'vacuum-floors': { name: 'Vacuum & Floors', time: '30 min', category: 'cleaning', steps: ['Vacuum all carpets', 'Shake rugs outside (not the shag rug)', 'Swiffer/sweep hard floors', 'Spot clean any stains', 'Return rugs to place'] },
+            'bathroom-quick': { name: 'Bathroom Quick-Clean', time: '15 min', category: 'cleaning', steps: ['Wipe down toilet seat and rim', 'Wipe sink and faucet', 'Clean mirror', 'Sweep floor', 'Check supplies (TP, soap)', 'Hang fresh hand towel'] },
+            'pillowcases': { name: 'Pillowcases Laundry', time: '5 min', category: 'laundry', steps: ['Strip pillowcases from bed', 'Add to normal laundry load', 'Wash with your regular clothes', 'Put fresh pillowcases on when dry', 'Every week keeps skin happy!'] }
+        };
+
         const DEFAULT_TEMPLATE = {
             monday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' },
-                { text: 'Retinol night', category: 'skincare' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
+                { text: 'Retinol night', category: 'skincare', routine: 'retinol' }
             ],
             tuesday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' }
             ],
             wednesday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' },
-                { text: 'Vitamin C night', category: 'skincare' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
+                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' }
             ],
             thursday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' },
-                { text: 'Hair wash day', category: 'hair' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
+                { text: 'Hair wash day', category: 'hair', routine: 'hair-wash' }
             ],
             friday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' },
-                { text: 'Hydrating face mask', category: 'skincare' },
-                { text: 'Vitamin C night', category: 'skincare' },
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
+                { text: 'Hydrating face mask', category: 'skincare', routine: 'hydrating-mask' },
+                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' },
                 { text: 'Quick vacuum', category: 'cleaning' }
             ],
             saturday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Dishes protocol', category: 'habit' },
-                { text: 'Bathroom wipe', category: 'habit' },
-                { text: '10-min evening tidy', category: 'habit' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
+                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
+                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' }
             ],
             sunday: [
-                { text: 'Make bed', category: 'habit' },
-                { text: 'Kitchen deep clean', category: 'cleaning', time: '10:00' },
-                { text: 'Vacuum & floors', category: 'cleaning' },
-                { text: 'Bathroom quick-clean', category: 'cleaning' },
-                { text: 'Vitamin C night', category: 'skincare' },
-                { text: 'Pillowcases laundry', category: 'laundry' }
+                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
+                { text: 'Kitchen deep clean', category: 'cleaning', time: '10:00', routine: 'kitchen-clean' },
+                { text: 'Vacuum & floors', category: 'cleaning', routine: 'vacuum-floors' },
+                { text: 'Bathroom quick-clean', category: 'cleaning', routine: 'bathroom-quick' },
+                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' },
+                { text: 'Pillowcases laundry', category: 'laundry', routine: 'pillowcases' }
             ]
         };
 
         let currentView = 'today';
         let currentWeekView = 'current';
         let currentModalDay = null;
+        let currentEditTask = null;
+        let currentMoveTask = null;
+        let expandedTasks = new Set();
 
         function saveData(key, value) {
-            try {
-                localStorage.setItem(key, JSON.stringify(value));
-            } catch (error) {
-                console.error('Save error:', error);
-            }
+            try { localStorage.setItem(key, JSON.stringify(value)); } 
+            catch (error) { console.error('Save error:', error); }
         }
 
         function loadData(key) {
@@ -829,32 +397,15 @@
             return new Date(d.setDate(diff));
         }
 
-        function formatDate(date) {
-            return date.toISOString().split('T')[0];
-        }
-
-        function getWeekKey(weekStart) {
-            return `week-${formatDate(weekStart)}`;
-        }
-
-        function getDayName(dayIndex) {
-            return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][dayIndex];
-        }
-
-        function formatDisplayDate(date) {
-            const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
-            return date.toLocaleDateString('en-US', options);
-        }
-
-        function formatShortDate(date) {
-            const options = { month: 'short', day: 'numeric' };
-            return date.toLocaleDateString('en-US', options);
-        }
+        function formatDate(date) { return date.toISOString().split('T')[0]; }
+        function getWeekKey(weekStart) { return `week-${formatDate(weekStart)}`; }
+        function getDayName(dayIndex) { return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][dayIndex]; }
+        function formatDisplayDate(date) { const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }; return date.toLocaleDateString('en-US', options); }
+        function formatShortDate(date) { const options = { month: 'short', day: 'numeric' }; return date.toLocaleDateString('en-US', options); }
 
         function generateWeekData(weekStart) {
             const weekKey = getWeekKey(weekStart);
             const existing = loadData(weekKey);
-            
             if (existing) return existing;
 
             const weekData = {};
@@ -868,8 +419,10 @@
                     tasks: DEFAULT_TEMPLATE[dayName].map(task => ({
                         ...task,
                         id: Date.now() + Math.random(),
-                        completed: false
-                    }))
+                        completed: false,
+                        notes: ''
+                    })),
+                    dayNotes: ''
                 };
             }
 
@@ -877,7 +430,8 @@
             return weekData;
         }
 
-        function toggleTask(weekKey, dateKey, taskId) {
+        function toggleTask(weekKey, dateKey, taskId, event) {
+            if (event) event.stopPropagation();
             const weekData = loadData(weekKey);
             const task = weekData[dateKey].tasks.find(t => t.id === taskId);
             task.completed = !task.completed;
@@ -885,13 +439,113 @@
             renderCurrentView();
         }
 
+        function toggleTaskDetails(weekKey, dateKey, taskId) {
+            const taskKey = `${weekKey}-${dateKey}-${taskId}`;
+            if (expandedTasks.has(taskKey)) {
+                expandedTasks.delete(taskKey);
+            } else {
+                expandedTasks.add(taskKey);
+            }
+            renderCurrentView();
+        }
+
+        function saveTaskNotes(weekKey, dateKey, taskId, notes) {
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            task.notes = notes;
+            saveData(weekKey, weekData);
+        }
+
+        function saveDayNotes(weekKey, dateKey, notes) {
+            const weekData = loadData(weekKey);
+            weekData[dateKey].dayNotes = notes;
+            saveData(weekKey, weekData);
+        }
+
+        function openEditTaskModal(weekKey, dateKey, taskId, event) {
+            event.stopPropagation();
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            
+            currentEditTask = { weekKey, dateKey, taskId };
+            document.getElementById('edit-task-name').value = task.text;
+            document.getElementById('edit-task-category').value = task.category;
+            document.getElementById('edit-task-time').value = task.time || '';
+            document.getElementById('edit-task-modal').classList.add('active');
+        }
+
+        function saveTaskEdit(event) {
+            event.preventDefault();
+            if (!currentEditTask) return;
+
+            const { weekKey, dateKey, taskId } = currentEditTask;
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            
+            task.text = document.getElementById('edit-task-name').value;
+            task.category = document.getElementById('edit-task-category').value;
+            task.time = document.getElementById('edit-task-time').value || undefined;
+            
+            saveData(weekKey, weekData);
+            closeModal('edit-task-modal');
+            renderCurrentView();
+        }
+
+        function openMoveTaskModal(weekKey, dateKey, taskId, event) {
+            event.stopPropagation();
+            currentMoveTask = { weekKey, dateKey, taskId };
+            
+            const weekStart = currentWeekView === 'current' ? getWeekStart() : getWeekStart(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+            const select = document.getElementById('move-task-day');
+            select.innerHTML = '<option value="">Select a day...</option>';
+            
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(weekStart);
+                dayDate.setDate(weekStart.getDate() + i);
+                const key = formatDate(dayDate);
+                if (key !== dateKey) {
+                    const dayName = getDayName(i);
+                    select.innerHTML += `<option value="${key}">${dayName.charAt(0).toUpperCase() + dayName.slice(1)} - ${formatShortDate(dayDate)}</option>`;
+                }
+            }
+            
+            document.getElementById('move-task-modal').classList.add('active');
+        }
+
+        function confirmMoveTask() {
+            if (!currentMoveTask) return;
+            const targetDay = document.getElementById('move-task-day').value;
+            if (!targetDay) return;
+
+            const { weekKey, dateKey, taskId } = currentMoveTask;
+            const weekData = loadData(weekKey);
+            
+            const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
+            const task = weekData[dateKey].tasks[taskIndex];
+            weekData[dateKey].tasks.splice(taskIndex, 1);
+            weekData[targetDay].tasks.push(task);
+            
+            saveData(weekKey, weekData);
+            closeModal('move-task-modal');
+            renderCurrentView();
+        }
+
+        function deleteTask(weekKey, dateKey, taskId, event) {
+            event.stopPropagation();
+            if (!confirm('Delete this task?')) return;
+            
+            const weekData = loadData(weekKey);
+            const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
+            weekData[dateKey].tasks.splice(taskIndex, 1);
+            saveData(weekKey, weekData);
+            renderCurrentView();
+        }
+
         function addCustomTask(event) {
             event.preventDefault();
-            
             const name = document.getElementById('task-name').value;
             const category = document.getElementById('task-category').value;
             const time = document.getElementById('task-time').value;
-
             if (!currentModalDay) return;
 
             const weekKey = getWeekKey(getWeekStart());
@@ -903,12 +557,72 @@
                 category,
                 time: time || undefined,
                 completed: false,
-                custom: true
+                custom: true,
+                notes: ''
             });
 
             saveData(weekKey, weekData);
             closeModal('add-task-modal');
             renderCurrentView();
+        }
+
+        function renderTaskItem(task, weekKey, dateKey) {
+            const routine = task.routine ? ROUTINES_LIBRARY[task.routine] : null;
+            const taskKey = `${weekKey}-${dateKey}-${task.id}`;
+            const isExpanded = expandedTasks.has(taskKey);
+            
+            let detailsHtml = '';
+            if (isExpanded) {
+                detailsHtml = `
+                    <div class="task-details active">
+                        ${routine ? `
+                            <div class="task-details-section">
+                                <div class="task-details-title">⏱️ Time: ${routine.time}</div>
+                            </div>
+                            <div class="task-details-section">
+                                <div class="task-details-title">📋 Steps:</div>
+                                <ul class="task-details-list">
+                                    ${routine.steps.map(step => `<li>${step}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        <div class="task-details-section">
+                            <div class="task-details-title">📝 My Notes:</div>
+                            <textarea class="task-notes-input" 
+                                      placeholder="Add your personal notes here..."
+                                      onchange="saveTaskNotes('${weekKey}', '${dateKey}', ${task.id}, this.value)"
+                                      onclick="event.stopPropagation()">${task.notes || ''}</textarea>
+                        </div>
+                        <div class="task-actions-row">
+                            <button class="task-action-btn-small btn-edit" onclick="openEditTaskModal('${weekKey}', '${dateKey}', ${task.id}, event)">✏️ Edit</button>
+                            <button class="task-action-btn-small btn-move" onclick="openMoveTaskModal('${weekKey}', '${dateKey}', ${task.id}, event)">📅 Move</button>
+                            <button class="task-action-btn-small btn-delete" onclick="deleteTask('${weekKey}', '${dateKey}', ${task.id}, event)">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="task-item-wrapper">
+                    <div class="task-item ${task.completed ? 'completed' : ''} ${isExpanded ? 'expanded' : ''}" 
+                         onclick="toggleTaskDetails('${weekKey}', '${dateKey}', ${task.id})">
+                        <div class="checkbox ${task.completed ? 'checked' : ''}" 
+                             onclick="toggleTask('${weekKey}', '${dateKey}', ${task.id}, event)"></div>
+                        <div class="task-content">
+                            <div class="task-header-row">
+                                <div class="task-text">${task.text}</div>
+                                <span class="task-expand-icon">▼</span>
+                            </div>
+                            <div class="task-meta">
+                                <span class="task-tag tag-${task.category}">${task.category}</span>
+                                ${task.time ? `<span class="task-time">${task.time}</span>` : ''}
+                                ${routine ? `<span class="task-time">⏱️ ${routine.time}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${detailsHtml}
+                </div>
+            `;
         }
 
         function renderTodayView() {
@@ -934,34 +648,24 @@
             document.getElementById('today-progress').style.width = percentage + '%';
             document.getElementById('progress-text').textContent = `${completed} of ${total} tasks complete`;
 
-            const tasksHtml = dayData.tasks.map(task => `
-                <div class="task-item ${task.completed ? 'completed' : ''}" onclick="toggleTask('${weekKey}', '${todayKey}', ${task.id})">
-                    <div class="checkbox ${task.completed ? 'checked' : ''}"></div>
-                    <div class="task-content">
-                        <div class="task-text">${task.text}</div>
-                        <div class="task-meta">
-                            <span class="task-tag tag-${task.category}">${task.category}</span>
-                            ${task.time ? `<span class="task-time">${task.time}</span>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+            const tasksHtml = dayData.tasks.map(task => renderTaskItem(task, weekKey, todayKey)).join('');
 
             document.getElementById('today-tasks').innerHTML = `
                 <div class="day-section">
+                    <div class="daily-notes">
+                        <div class="daily-notes-title">📔 Notes for Today</div>
+                        <textarea class="daily-notes-textarea" 
+                                  placeholder="Add notes for today..."
+                                  onchange="saveDayNotes('${weekKey}', '${todayKey}', this.value)">${dayData.dayNotes || ''}</textarea>
+                    </div>
                     ${tasksHtml}
-                    <button class="add-task-btn" onclick="openAddTaskModal('${todayKey}')">
-                        + Add Task
-                    </button>
+                    <button class="add-task-btn" onclick="openAddTaskModal('${todayKey}')">+ Add Task</button>
                 </div>
             `;
         }
 
         function renderWeekView() {
-            const weekStart = currentWeekView === 'current' 
-                ? getWeekStart() 
-                : getWeekStart(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-            
+            const weekStart = currentWeekView === 'current' ? getWeekStart() : getWeekStart(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
             const weekKey = getWeekKey(weekStart);
             const weekData = generateWeekData(weekStart);
 
@@ -976,18 +680,7 @@
                 const total = dayData.tasks.length;
                 const isComplete = completed === total && total > 0;
 
-                const tasksHtml = dayData.tasks.map(task => `
-                    <div class="task-item ${task.completed ? 'completed' : ''}" onclick="toggleTask('${weekKey}', '${dateKey}', ${task.id})">
-                        <div class="checkbox ${task.completed ? 'checked' : ''}"></div>
-                        <div class="task-content">
-                            <div class="task-text">${task.text}</div>
-                            <div class="task-meta">
-                                <span class="task-tag tag-${task.category}">${task.category}</span>
-                                ${task.time ? `<span class="task-time">${task.time}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                const tasksHtml = dayData.tasks.map(task => renderTaskItem(task, weekKey, dateKey)).join('');
 
                 html += `
                     <div class="day-section">
@@ -1000,11 +693,15 @@
                                 <span class="completion-badge ${isComplete ? 'complete' : ''}">${completed}/${total}</span>
                             </div>
                         </div>
+                        <div class="daily-notes">
+                            <div class="daily-notes-title">📔 Notes</div>
+                            <textarea class="daily-notes-textarea" 
+                                      placeholder="Add notes..."
+                                      onchange="saveDayNotes('${weekKey}', '${dateKey}', this.value)">${dayData.dayNotes || ''}</textarea>
+                        </div>
                         <div class="task-list">
                             ${tasksHtml}
-                            <button class="add-task-btn" onclick="openAddTaskModal('${dateKey}')">
-                                + Add Task
-                            </button>
+                            <button class="add-task-btn" onclick="openAddTaskModal('${dateKey}')">+ Add Task</button>
                         </div>
                     </div>
                 `;
@@ -1013,16 +710,36 @@
             document.getElementById('week-content').innerHTML = html;
         }
 
+        function renderRoutinesView() {
+            let html = '';
+            for (const [key, routine] of Object.entries(ROUTINES_LIBRARY)) {
+                html += `
+                    <div style="background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 600;">${routine.name}</h3>
+                            <span style="font-size: 0.85rem; color: var(--text-lighter);">⏱️ ${routine.time}</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span class="task-tag tag-${routine.category}">${routine.category}</span>
+                        </div>
+                        <ul class="task-details-list">
+                            ${routine.steps.map(step => `<li>${step}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            document.getElementById('routines-content').innerHTML = html;
+        }
+
         function switchView(view) {
             currentView = view;
-            
             document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
             document.getElementById(`${view}-view`).classList.remove('hidden');
-            
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             event.currentTarget.classList.add('active');
             
-            renderCurrentView();
+            if (view === 'routines') renderRoutinesView();
+            else renderCurrentView();
         }
 
         function showWeek(week) {
@@ -1033,11 +750,8 @@
         }
 
         function renderCurrentView() {
-            if (currentView === 'today') {
-                renderTodayView();
-            } else if (currentView === 'week') {
-                renderWeekView();
-            }
+            if (currentView === 'today') renderTodayView();
+            else if (currentView === 'week') renderWeekView();
         }
 
         function openAddTaskModal(dateKey) {
@@ -1065,10 +779,8 @@
                     const key = localStorage.key(i);
                     allData[key] = localStorage.getItem(key);
                 }
-
                 const dataStr = JSON.stringify(allData, null, 2);
                 const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                
                 const url = URL.createObjectURL(dataBlob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -1077,65 +789,47 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
-
-                alert('✅ Backup downloaded! Save this file somewhere safe.');
+                alert('✅ Backup downloaded!');
             } catch (error) {
                 console.error('Export error:', error);
-                alert('❌ Error creating backup. Please try again.');
+                alert('❌ Error creating backup.');
             }
         }
 
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    
-                    if (!confirm('⚠️ This will replace all current data with the backup. Continue?')) {
-                        return;
-                    }
-
+                    if (!confirm('⚠️ This will replace all current data. Continue?')) return;
                     localStorage.clear();
-
-                    for (const key in data) {
-                        localStorage.setItem(key, data[key]);
-                    }
-
-                    alert('✅ Backup restored successfully!');
+                    for (const key in data) localStorage.setItem(key, data[key]);
+                    alert('✅ Backup restored!');
                     location.reload();
                 } catch (error) {
                     console.error('Import error:', error);
-                    alert('❌ Invalid backup file. Please try again.');
+                    alert('❌ Invalid backup file.');
                 }
             };
             reader.readAsText(file);
-            
             event.target.value = '';
         }
 
         function resetApp() {
-            if (confirm('⚠️ This will delete all your data. Are you sure?')) {
+            if (confirm('⚠️ Delete all data?')) {
                 localStorage.clear();
                 location.reload();
             }
         }
 
-        function init() {
-            renderTodayView();
-        }
-
+        function init() { renderTodayView(); }
         init();
-
         setInterval(() => {
             const now = new Date();
-            if (now.getHours() === 0 && now.getMinutes() === 0) {
-                init();
-            }
+            if (now.getHours() === 0 && now.getMinutes() === 0) init();
         }, 60000);
     </script>
 </body>
 </html>
-
