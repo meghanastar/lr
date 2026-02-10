@@ -399,11 +399,7 @@
             <div id="month-calendar"></div>
         </div>
 
-            <div id="lastweek-view" class="view-content hidden">
-            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">⏮️ Last Week</h2>
-            <div id="lastweek-content"></div>
-        </div>
-
+        
         <div id="metrics-view" class="view-content hidden">
             <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 30px;">📊 Your Metrics</h2>
             
@@ -435,10 +431,6 @@
         <button class="nav-item" onclick="switchView('month')">
             <div class="nav-icon">🗓️</div>
             <div class="nav-label">Month</div>
-        </button>
-        <button class="nav-item" onclick="switchView('lastweek')">
-            <div class="nav-icon">⏮️</div>
-            <div class="nav-label">Last Week</div>
         </button>
         <button class="nav-item" onclick="switchView('metrics')">
             <div class="nav-icon">📊</div>
@@ -826,6 +818,12 @@
             const diff = d.getDate() - day + (day === 0 ? -6 : 1);
             return new Date(d.setDate(diff));
         }
+        
+        function parseLocalDate(dateKey) {
+            const [year, month, day] = dateKey.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
+
 
         function formatDate(date) { return date.toISOString().split('T')[0]; }
         function getWeekKey(weekStart) { return `week-${formatDate(weekStart)}`; }
@@ -1306,50 +1304,7 @@
             document.getElementById('routines-content').innerHTML = html;
         }
 
-                function renderLastWeekView() {
-            const today = new Date();
-            const lastWeekStart = new Date(today);
-            lastWeekStart.setDate(today.getDate() - 7);
-            const weekStart = getWeekStart(lastWeekStart);
-            const weekKey = getWeekKey(weekStart);
-            const weekData = loadData(weekKey);
-
-            if (!weekData) {
-                document.getElementById('lastweek-content').innerHTML = '<div class="day-section"><p>No data from last week yet!</p></div>';
-                return;
-            }
-
-            let html = '';
-            for (let i = 0; i < 7; i++) {
-                const dayDate = new Date(weekStart);
-                dayDate.setDate(weekStart.getDate() + i);
-                const dateKey = formatDate(dayDate);
-                const dayData = weekData[dateKey];
-
-                if (!dayData) continue;
-
-                const completed = dayData.tasks.filter(t => t.completed).length;
-                const total = dayData.tasks.length;
-                const isComplete = completed === total && total > 0;
-
-                html += `
-                    <div class="day-section">
-                        <div class="day-header">
-                            <div class="day-title-group">
-                                <span class="day-title">${dayData.dayName.charAt(0).toUpperCase() + dayData.dayName.slice(1)}</span>
-                                <span class="day-date">${formatShortDate(dayDate)}</span>
-                            </div>
-                            <div class="day-stats">
-                                <span class="completion-badge ${isComplete ? 'complete' : ''}">${completed}/${total}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            document.getElementById('lastweek-content').innerHTML = html || '<div class="day-section"><p>No data available</p></div>';
-        }
-
+                
         function calculateStreak() {
             let streak = 0;
             const today = new Date();
@@ -1776,8 +1731,8 @@
                 let currentDayDetailKey = null;
         let currentDayDetailWeekKey = null;
 
-                function openDayDetail(dateKey) {
-            const date = new Date(dateKey);
+     function openDayDetail(dateKey) {
+            const date = parseLocalDate(dateKey);
             const weekStart = getWeekStart(date);
             const weekKey = getWeekKey(weekStart);
             const weekData = loadData(weekKey);
@@ -1854,8 +1809,9 @@
         function goToDay() {
             if (!currentDayDetailKey) return;
             
-            const date = new Date(currentDayDetailKey);
+            const date = parseLocalDate(currentDayDetailKey);
             const today = new Date();
+
             
             // Check if it's today
             if (formatDate(date) === formatDate(today)) {
@@ -1892,7 +1848,6 @@
             event.currentTarget.classList.add('active');
             
             if (view === 'routines') renderRoutinesView();
-            else if (view === 'lastweek') renderLastWeekView();
             else if (view === 'metrics') renderMetricsView();
             else if (view === 'month') renderMonthView();
             else renderCurrentView();
