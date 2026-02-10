@@ -724,8 +724,7 @@
                             </div>
                             <div class="task-meta">
                                 <span class="task-tag tag-${task.category}">${task.category}</span>
-                                ${task.time ? `<span class="task-time">${task.time}</span>` : ''}
-                                ${routine ? `<span class="task-time">⏱️ ${routine.time}</span>` : ''}
+                                ${task.time ? `<span class="task-time">⏱️ ${task.time}</span>` : (routine ? `<span class="task-time">⏱️ ${routine.time}</span>` : '')}
                             </div>
                         </div>
                     </div>
