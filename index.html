@@ -943,7 +943,52 @@
             renderCurrentView();
             alert('✅ Removed from all future weeks!');
         }
+        function showRecurringTasksModal() {
+            const recurringTasks = loadData('recurring-tasks') || [];
+            
+            if (recurringTasks.length === 0) {
+                document.getElementById('recurring-tasks-list').innerHTML = '<p style="color: var(--text-lighter);">No recurring tasks yet!</p>';
+            } else {
+                let html = '';
+                recurringTasks.forEach(task => {
+                    const daysDisplay = task.frequency === 'daily' ? 'Every day' : 
+                                       task.frequency === 'monthly' ? `Monthly (${task.days[0]})` :
+                                       task.days.join(', ');
+                    
+                    html += `
+                        <div style="background: var(--surface-hover); border-radius: 12px; padding: 15px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <div style="font-weight: 600; margin-bottom: 5px;">${task.text}</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-lighter);">
+                                        <span class="task-tag tag-${task.category}">${task.category}</span>
+                                        ${task.time ? `<span style="margin-left: 8px;">⏱️ ${task.time}</span>` : ''}
+                                    </div>
+                                    <div style="font-size: 0.85rem; color: var(--text-light); margin-top: 5px;">
+                                        📅 ${task.frequency} - ${daysDisplay}
+                                    </div>
+                                </div>
+                                <button class="task-action-btn-small btn-delete" onclick="deleteRecurringFromList(${task.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                document.getElementById('recurring-tasks-list').innerHTML = html;
+            }
+            
+            document.getElementById('recurring-tasks-modal').classList.add('active');
+        }
 
+        function deleteRecurringFromList(recurringId) {
+            if (!confirm('Delete this recurring task? It will be removed from all future weeks.')) return;
+            
+            const recurringTasks = loadData('recurring-tasks') || [];
+            const filtered = recurringTasks.filter(rt => rt.id !== recurringId);
+            saveData('recurring-tasks', filtered);
+            
+            showRecurringTasksModal(); // Refresh the list
+            alert('✅ Recurring task deleted!');
+        }
 
         function addCustomTask(event) {
             event.preventDefault();
