@@ -612,60 +612,7 @@
             <div id="recurring-tasks-list"></div>
         </div>
     </div>
-            function saveTaskToRoutine(event) {
-            event.preventDefault();
-            if (!currentRoutineTask) return;
             
-            const frequency = document.getElementById('routine-frequency').value;
-            const task = currentRoutineTask.task;
-            
-            let days = [];
-            if (frequency === 'daily') {
-                days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            } else if (frequency === 'monthly') {
-                // For monthly, use the current day of month
-                const today = new Date();
-                days = [`day-${today.getDate()}`];
-            } else {
-                // Weekly or bi-weekly
-                document.querySelectorAll('#days-selector input[type="checkbox"]:checked').forEach(cb => {
-                    days.push(cb.value);
-                });
-                
-                if (days.length === 0) {
-                    alert('Please select at least one day!');
-                    return;
-                }
-            }
-            
-            // Save to recurring tasks template
-            const recurringTasks = loadData('recurring-tasks') || [];
-            recurringTasks.push({
-                id: Date.now(),
-                text: task.text,
-                category: task.category,
-                time: task.time,
-                routine: task.routine,
-                frequency: frequency,
-                days: days,
-                startDate: formatDate(new Date())
-            });
-            
-            saveData('recurring-tasks', recurringTasks);
-            
-            closeModal('add-to-routine-modal');
-            alert(`✅ Added "${task.text}" to your recurring tasks!`);
-        }
-        
-            <div id="recurring-tasks-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Recurring Tasks</h2>
-                <button class="modal-close" onclick="closeModal('recurring-tasks-modal')">×</button>
-            </div>
-            <div id="recurring-tasks-list"></div>
-        </div>
-    </div>
 
 
     <script>
@@ -1517,22 +1464,21 @@
             }
         });
 
-                function saveTaskToRoutine(event) {
+        function saveTaskToRoutine(event) {
             event.preventDefault();
             if (!currentRoutineTask) return;
             
             const frequency = document.getElementById('routine-frequency').value;
             const task = currentRoutineTask.task;
             
+            // Get selected days
             let days = [];
             if (frequency === 'daily') {
                 days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
             } else if (frequency === 'monthly') {
-                // For monthly, use the current day of month
                 const today = new Date();
                 days = [`day-${today.getDate()}`];
             } else {
-                // Weekly or bi-weekly
                 document.querySelectorAll('#days-selector input[type="checkbox"]:checked').forEach(cb => {
                     days.push(cb.value);
                 });
@@ -1543,8 +1489,20 @@
                 }
             }
             
-            // Save to recurring tasks template
+            // CHECK FOR DUPLICATES - NEW!
             const recurringTasks = loadData('recurring-tasks') || [];
+            const duplicate = recurringTasks.find(rt => 
+                rt.text === task.text && 
+                rt.frequency === frequency &&
+                JSON.stringify(rt.days.sort()) === JSON.stringify(days.sort())
+            );
+            
+            if (duplicate) {
+                alert('⚠️ This exact recurring task already exists!');
+                return;
+            }
+            
+            // Save to recurring tasks template
             recurringTasks.push({
                 id: Date.now(),
                 text: task.text,
@@ -1561,6 +1519,7 @@
             closeModal('add-to-routine-modal');
             alert(`✅ Added "${task.text}" to your recurring tasks!`);
         }
+
 
         function switchView(view) {
             currentView = view;
