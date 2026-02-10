@@ -527,6 +527,62 @@
             <button class="btn btn-primary" onclick="confirmAddRoutineToSchedule()">Add to Schedule</button>
         </div>
     </div>
+    <div id="add-to-routine-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add to Weekly Routine</h2>
+                <button class="modal-close" onclick="closeModal('add-to-routine-modal')">×</button>
+            </div>
+            <form onsubmit="saveTaskToRoutine(event)">
+                <div class="form-group">
+                    <label class="form-label">Repeat Frequency</label>
+                    <select class="form-select" id="routine-frequency">
+                        <option value="daily">Daily (every day)</option>
+                        <option value="weekly">Weekly (specific days)</option>
+                        <option value="biweekly">Bi-weekly (every 2 weeks)</option>
+                        <option value="monthly">Monthly (specific date)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="days-selector">
+                    <label class="form-label">Repeat on these days:</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-monday" value="monday">
+                            <span>Monday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-tuesday" value="tuesday">
+                            <span>Tuesday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-wednesday" value="wednesday">
+                            <span>Wednesday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-thursday" value="thursday">
+                            <span>Thursday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-friday" value="friday">
+                            <span>Friday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-saturday" value="saturday">
+                            <span>Saturday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="day-sunday" value="sunday">
+                            <span>Sunday</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="info-box" style="background: var(--amethyst-light);">
+                    <strong>📅 Note:</strong> This will add the task to your weekly template starting from next week. It won't affect previous weeks.
+                </div>
+                <button type="submit" class="btn btn-primary">Add to Routine</button>
+            </form>
+        </div>
+    </div>
 
     <script>
         const ROUTINES_LIBRARY = {
@@ -822,10 +878,11 @@
                                       onchange="saveTaskNotes('${weekKey}', '${dateKey}', ${task.id}, this.value)"
                                       onclick="event.stopPropagation()">${task.notes || ''}</textarea>
                         </div>
-                        <div class="task-actions-row">
+                     <div class="task-actions-row">
                             <button class="task-action-btn-small btn-edit" onclick="openEditTaskModal('${weekKey}', '${dateKey}', ${task.id}, event)">✏️ Edit</button>
                             <button class="task-action-btn-small btn-move" onclick="openMoveTaskModal('${weekKey}', '${dateKey}', ${task.id}, event)">📅 Move</button>
                             <button class="task-action-btn-small btn-delete" onclick="deleteTask('${weekKey}', '${dateKey}', ${task.id}, event)">🗑️ Delete</button>
+                            <button class="task-action-btn-small" style="background: var(--amethyst); color: white;" onclick="openAddToRoutineModal('${weekKey}', '${dateKey}', ${task.id}, event)">🔄 Add to Routine</button>
                         </div>
                     </div>
                 `;
@@ -1249,6 +1306,88 @@
             if (saved) {
                 Object.assign(ROUTINES_LIBRARY, saved);
             }
+        }
+                let currentRoutineTask = null;
+
+        function openAddToRoutineModal(weekKey, dateKey, taskId, event) {
+            event.stopPropagation();
+            
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            currentRoutineTask = { task, weekKey, dateKey, taskId };
+            
+            // Reset form
+            document.getElementById('routine-frequency').value = 'weekly';
+            document.querySelectorAll('#days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
+            toggleDaysSelector();
+            
+            document.getElementById('add-to-routine-modal').classList.add('active');
+        }
+
+        function toggleDaysSelector() {
+            const frequency = document.getElementById('routine-frequency').value;
+            const daysSelector = document.getElementById('days-selector');
+            
+            if (frequency === 'daily') {
+                daysSelector.style.display = 'none';
+            } else if (frequency === 'monthly') {
+                daysSelector.style.display = 'none';
+            } else {
+                daysSelector.style.display = 'block';
+            }
+        }
+
+        // Add event listener to frequency dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const freqSelect = document.getElementById('routine-frequency');
+            if (freqSelect) {
+                freqSelect.addEventListener('change', toggleDaysSelector);
+            }
+        });
+
+        function saveTaskToRoutine(event) {
+            event.preventDefault();
+            if (!currentRoutineTask) return;
+            
+            const frequency = document.getElementById('routine-frequency').value;
+            const task = currentRoutineTask.task;
+            
+            let days = [];
+            if (frequency === 'daily') {
+                days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            } else if (frequency === 'monthly') {
+                // For monthly, use the current day of month
+                const today = new Date();
+                days = [`day-${today.getDate()}`];
+            } else {
+                // Weekly or bi-weekly
+                document.querySelectorAll('#days-selector input[type="checkbox"]:checked').forEach(cb => {
+                    days.push(cb.value);
+                });
+                
+                if (days.length === 0) {
+                    alert('Please select at least one day!');
+                    return;
+                }
+            }
+            
+            // Save to recurring tasks template
+            const recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks.push({
+                id: Date.now(),
+                text: task.text,
+                category: task.category,
+                time: task.time,
+                routine: task.routine,
+                frequency: frequency,
+                days: days,
+                startDate: formatDate(new Date())
+            });
+            
+            saveData('recurring-tasks', recurringTasks);
+            
+            closeModal('add-to-routine-modal');
+            alert(`✅ Added "${task.text}" to your recurring tasks!`);
         }
 
         function switchView(view) {
