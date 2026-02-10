@@ -305,6 +305,14 @@
                 <button class="btn btn-primary" onclick="generateNewWeek()" style="margin-bottom: 10px;">🔄 Generate New Week</button>
                 <button class="btn btn-primary" onclick="resetApp()" style="background: linear-gradient(135deg, var(--ruby), var(--ruby-dark));">⚠️ Reset All Data</button>
             </div>
+                        <div class="settings-section">
+                <h2 class="settings-title">Recurring Tasks</h2>
+                <div class="info-box">
+                    <strong>🔄 Manage your recurring tasks</strong><br>
+                    These tasks auto-add to future weeks
+                </div>
+                <button class="btn btn-primary" onclick="showRecurringTasksModal()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--amethyst), var(--amethyst-dark));">View & Manage Recurring Tasks</button>
+            </div>
         </div>
     </div>
 
@@ -583,6 +591,82 @@
             </form>
         </div>
     </div>
+    <div id="delete-recurring-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Delete Recurring Task</h2>
+                <button class="modal-close" onclick="closeModal('delete-recurring-modal')">×</button>
+            </div>
+            <p style="margin-bottom: 20px; color: var(--text-light);">This is a recurring task. What would you like to do?</p>
+            <button class="btn btn-primary" onclick="deleteRecurringInstance()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">Delete Only This Instance</button>
+            <button class="btn btn-primary" onclick="deleteRecurringAll()" style="background: linear-gradient(135deg, var(--ruby), var(--ruby-dark));">Delete All Future Instances</button>
+        </div>
+    </div>
+    
+    <div id="recurring-tasks-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Recurring Tasks</h2>
+                <button class="modal-close" onclick="closeModal('recurring-tasks-modal')">×</button>
+            </div>
+            <div id="recurring-tasks-list"></div>
+        </div>
+    </div>
+            function saveTaskToRoutine(event) {
+            event.preventDefault();
+            if (!currentRoutineTask) return;
+            
+            const frequency = document.getElementById('routine-frequency').value;
+            const task = currentRoutineTask.task;
+            
+            let days = [];
+            if (frequency === 'daily') {
+                days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            } else if (frequency === 'monthly') {
+                // For monthly, use the current day of month
+                const today = new Date();
+                days = [`day-${today.getDate()}`];
+            } else {
+                // Weekly or bi-weekly
+                document.querySelectorAll('#days-selector input[type="checkbox"]:checked').forEach(cb => {
+                    days.push(cb.value);
+                });
+                
+                if (days.length === 0) {
+                    alert('Please select at least one day!');
+                    return;
+                }
+            }
+            
+            // Save to recurring tasks template
+            const recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks.push({
+                id: Date.now(),
+                text: task.text,
+                category: task.category,
+                time: task.time,
+                routine: task.routine,
+                frequency: frequency,
+                days: days,
+                startDate: formatDate(new Date())
+            });
+            
+            saveData('recurring-tasks', recurringTasks);
+            
+            closeModal('add-to-routine-modal');
+            alert(`✅ Added "${task.text}" to your recurring tasks!`);
+        }
+        
+            <div id="recurring-tasks-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Recurring Tasks</h2>
+                <button class="modal-close" onclick="closeModal('recurring-tasks-modal')">×</button>
+            </div>
+            <div id="recurring-tasks-list"></div>
+        </div>
+    </div>
+
 
     <script>
         const ROUTINES_LIBRARY = {
@@ -858,7 +942,7 @@
             renderCurrentView();
         }
 
-    function deleteTask(weekKey, dateKey, taskId, event) {
+            function deleteTask(weekKey, dateKey, taskId, event) {
             event.stopPropagation();
             
             const weekData = loadData(weekKey);
@@ -866,33 +950,53 @@
             
             // Check if this is a recurring task
             if (task.recurringId) {
-                const choice = confirm(
-                    `This is a recurring task. Choose:\n\n` +
-                    `OK = Delete only this instance\n` +
-                    `Cancel = Go back\n\n` +
-                    `(To delete ALL future instances, say "all" in the next prompt)`
-                );
-                
-                if (!choice) return;
-                
-                const deleteAll = prompt('Type "all" to delete this task from all future weeks, or press OK to delete just this one:');
-                
-                if (deleteAll && deleteAll.toLowerCase() === 'all') {
-                    // Delete from recurring tasks template
-                    const recurringTasks = loadData('recurring-tasks') || [];
-                    const filtered = recurringTasks.filter(rt => rt.id !== task.recurringId);
-                    saveData('recurring-tasks', filtered);
-                    alert('✅ Removed from all future weeks!');
-                }
+                // Store in global variable for modal to access
+                window.currentDeleteTask = { weekKey, dateKey, taskId, recurringId: task.recurringId };
+                document.getElementById('delete-recurring-modal').classList.add('active');
             } else {
                 if (!confirm('Delete this task?')) return;
+                const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
+                weekData[dateKey].tasks.splice(taskIndex, 1);
+                saveData(weekKey, weekData);
+                renderCurrentView();
             }
+        }
+
+        function deleteRecurringInstance() {
+            if (!window.currentDeleteTask) return;
             
+            const { weekKey, dateKey, taskId } = window.currentDeleteTask;
+            const weekData = loadData(weekKey);
             const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
             weekData[dateKey].tasks.splice(taskIndex, 1);
             saveData(weekKey, weekData);
+            
+            closeModal('delete-recurring-modal');
             renderCurrentView();
+            alert('✅ Deleted this instance!');
         }
+
+        function deleteRecurringAll() {
+            if (!window.currentDeleteTask) return;
+            
+            const { weekKey, dateKey, taskId, recurringId } = window.currentDeleteTask;
+            
+            // Delete from this week
+            const weekData = loadData(weekKey);
+            const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
+            weekData[dateKey].tasks.splice(taskIndex, 1);
+            saveData(weekKey, weekData);
+            
+            // Delete from recurring template
+            const recurringTasks = loadData('recurring-tasks') || [];
+            const filtered = recurringTasks.filter(rt => rt.id !== recurringId);
+            saveData('recurring-tasks', filtered);
+            
+            closeModal('delete-recurring-modal');
+            renderCurrentView();
+            alert('✅ Removed from all future weeks!');
+        }
+
 
         function addCustomTask(event) {
             event.preventDefault();
@@ -1413,7 +1517,7 @@
             }
         });
 
-        function saveTaskToRoutine(event) {
+                function saveTaskToRoutine(event) {
             event.preventDefault();
             if (!currentRoutineTask) return;
             
