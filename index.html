@@ -688,25 +688,67 @@
         function formatDisplayDate(date) { const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }; return date.toLocaleDateString('en-US', options); }
         function formatShortDate(date) { const options = { month: 'short', day: 'numeric' }; return date.toLocaleDateString('en-US', options); }
 
-        function generateWeekData(weekStart) {
+                function generateWeekData(weekStart) {
             const weekKey = getWeekKey(weekStart);
             const existing = loadData(weekKey);
             if (existing) return existing;
 
             const weekData = {};
+            const recurringTasks = loadData('recurring-tasks') || [];
+            
             for (let i = 0; i < 7; i++) {
                 const dayDate = new Date(weekStart);
                 dayDate.setDate(weekStart.getDate() + i);
                 const dayName = getDayName(i);
+                const dateKey = formatDate(dayDate);
                 
-                weekData[formatDate(dayDate)] = {
+                // Start with template tasks
+                const dayTasks = DEFAULT_TEMPLATE[dayName].map(task => ({
+                    ...task,
+                    id: Date.now() + Math.random(),
+                    completed: false,
+                    notes: ''
+                }));
+                
+                // Add recurring tasks that apply to this day
+                recurringTasks.forEach(recTask => {
+                    const taskStartDate = new Date(recTask.startDate);
+                    const currentDate = new Date(dateKey);
+                    
+                    // Only add if this week is on or after the task's start date
+                    if (currentDate >= taskStartDate) {
+                        let shouldAdd = false;
+                        
+                        if (recTask.frequency === 'daily') {
+                            shouldAdd = true;
+                        } else if (recTask.frequency === 'weekly') {
+                            shouldAdd = recTask.days.includes(dayName);
+                        } else if (recTask.frequency === 'biweekly') {
+                            const weeksDiff = Math.floor((currentDate - taskStartDate) / (7 * 24 * 60 * 60 * 1000));
+                            shouldAdd = (weeksDiff % 2 === 0) && recTask.days.includes(dayName);
+                        } else if (recTask.frequency === 'monthly') {
+                            const dayOfMonth = currentDate.getDate();
+                            shouldAdd = recTask.days.includes(`day-${dayOfMonth}`);
+                        }
+                        
+                        if (shouldAdd) {
+                            dayTasks.push({
+                                text: recTask.text,
+                                category: recTask.category,
+                                time: recTask.time,
+                                routine: recTask.routine,
+                                id: Date.now() + Math.random(),
+                                completed: false,
+                                notes: '',
+                                recurringId: recTask.id
+                            });
+                        }
+                    }
+                });
+                
+                weekData[dateKey] = {
                     dayName,
-                    tasks: DEFAULT_TEMPLATE[dayName].map(task => ({
-                        ...task,
-                        id: Date.now() + Math.random(),
-                        completed: false,
-                        notes: ''
-                    })),
+                    tasks: dayTasks,
                     dayNotes: ''
                 };
             }
@@ -714,6 +756,7 @@
             saveData(weekKey, weekData);
             return weekData;
         }
+
 
         function toggleTask(weekKey, dateKey, taskId, event) {
             if (event) event.stopPropagation();
@@ -815,11 +858,36 @@
             renderCurrentView();
         }
 
-        function deleteTask(weekKey, dateKey, taskId, event) {
+    function deleteTask(weekKey, dateKey, taskId, event) {
             event.stopPropagation();
-            if (!confirm('Delete this task?')) return;
             
             const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            
+            // Check if this is a recurring task
+            if (task.recurringId) {
+                const choice = confirm(
+                    `This is a recurring task. Choose:\n\n` +
+                    `OK = Delete only this instance\n` +
+                    `Cancel = Go back\n\n` +
+                    `(To delete ALL future instances, say "all" in the next prompt)`
+                );
+                
+                if (!choice) return;
+                
+                const deleteAll = prompt('Type "all" to delete this task from all future weeks, or press OK to delete just this one:');
+                
+                if (deleteAll && deleteAll.toLowerCase() === 'all') {
+                    // Delete from recurring tasks template
+                    const recurringTasks = loadData('recurring-tasks') || [];
+                    const filtered = recurringTasks.filter(rt => rt.id !== task.recurringId);
+                    saveData('recurring-tasks', filtered);
+                    alert('✅ Removed from all future weeks!');
+                }
+            } else {
+                if (!confirm('Delete this task?')) return;
+            }
+            
             const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
             weekData[dateKey].tasks.splice(taskIndex, 1);
             saveData(weekKey, weekData);
