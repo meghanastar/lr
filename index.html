@@ -781,7 +781,26 @@
         </div>
     </div>
     
-            <div id="capture-view" class="view-content hidden">
+                    <div id="capture-view" class="view-content hidden">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">📝 Capture List</h2>
+            
+            <button class="btn btn-primary" onclick="openAddCaptureItemModal()" style="width: 100%; margin-bottom: 20px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">+ Add Item</button>
+            
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="filter-btn active" onclick="filterCaptureList('all')">All</button>
+                    <button class="filter-btn" onclick="filterCaptureList('unassigned')">Unassigned</button>
+                    <button class="filter-btn" onclick="filterCaptureList('assigned')">Assigned</button>
+                </div>
+            </div>
+            
+            <div id="capture-list-content">
+                <p style="color: var(--text-lighter); text-align: center; padding: 40px 20px;">
+                    No capture items yet! Click "+ Add Item" to get started.
+                </p>
+            </div>
+        </div>
+
                         <div id="add-capture-item-modal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
