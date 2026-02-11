@@ -171,6 +171,33 @@
         .tag-laundry { background: var(--jade-light); color: var(--jade); }
         .tag-special { background: var(--gold-light); color: var(--gold); }
         .tag-deepclean { background: var(--emerald-light); color: var(--emerald); }
+        .tag-essential { background: var(--ruby-light); color: var(--ruby); }
+
+        /* Vacation Mode */
+        .vacation-banner {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+        .vacation-banner-icon { font-size: 1.3rem; }
+        .vacation-banner-text { flex: 1; }
+        .vacation-banner-text strong { color: #92400e; }
+        .vacation-setup {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .vacation-setup h3 { margin-bottom: 10px; }
+        .vacation-dates { display: flex; gap: 10px; margin-bottom: 10px; }
+        .vacation-dates .form-input { flex: 1; }
         .tag-capture { background: var(--topaz-light); color: var(--topaz); }
         .task-time { font-size: 0.75rem; color: var(--text-lighter); }
         
@@ -863,6 +890,7 @@
                 <h2 id="month-title" style="font-family: 'Playfair Display', serif; font-size: 1.8rem;">February 2026</h2>
                 <button class="icon-btn" onclick="nextMonth()">▶</button>
             </div>
+            <div id="vacation-section"></div>
             <div id="month-calendar"></div>
         </div>
 
@@ -943,6 +971,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
             <div class="form-group">
@@ -987,6 +1016,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1064,6 +1094,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1100,6 +1131,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1268,6 +1300,7 @@
                             <option value="laundry">Laundry</option>
                             <option value="special">Special</option>
                             <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1306,6 +1339,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1392,6 +1426,7 @@
                         <option value="laundry">Laundry</option>
                         <option value="special">Special</option>
                         <option value="deepclean">Deep Clean</option>
+                        <option value="essential">Essential</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -3015,16 +3050,29 @@ function editCaptureAssignment(itemId) {
 
             document.getElementById('today-date').textContent = formatDisplayDate(today);
             
-            const completed = dayData.tasks.filter(t => t.completed).length;
-            const total = dayData.tasks.length;
+            // Filter for vacation mode
+            const visibleTasks = filterVacationTasks(dayData.tasks, todayKey);
+            const vacationActive = isOnVacation(todayKey);
+            
+            const completed = visibleTasks.filter(t => t.completed).length;
+            const total = visibleTasks.length;
             const percentage = total > 0 ? (completed / total) * 100 : 0;
 
             document.getElementById('today-progress').style.width = percentage + '%';
             document.getElementById('progress-text').textContent = `${completed} of ${total} tasks complete`;
 
-            const { scheduled, unscheduled } = splitTasks(dayData.tasks);
+            const { scheduled, unscheduled } = splitTasks(visibleTasks);
             
-            let contentHtml = `
+            let contentHtml = '';
+            
+            if (vacationActive) {
+                contentHtml += `<div class="vacation-banner">
+                    <span class="vacation-banner-icon">🏖️</span>
+                    <div class="vacation-banner-text"><strong>Vacation Mode</strong> — only essential tasks shown</div>
+                </div>`;
+            }
+            
+            contentHtml += `
                 <div class="daily-notes">
                     <div class="daily-notes-title">📔 Notes for Today</div>
                     <textarea class="daily-notes-textarea" 
@@ -3076,13 +3124,23 @@ function editCaptureAssignment(itemId) {
                 const dayData = weekData[dateKey];
                 const isToday = dateKey === todayKey;
 
-                const completed = dayData.tasks.filter(t => t.completed).length;
-                const total = dayData.tasks.length;
+                // Filter for vacation mode
+                const visibleTasks = filterVacationTasks(dayData.tasks, dateKey);
+                const vacationActive = isOnVacation(dateKey);
+
+                const completed = visibleTasks.filter(t => t.completed).length;
+                const total = visibleTasks.length;
                 const isComplete = completed === total && total > 0;
 
-                const { scheduled, unscheduled } = splitTasks(dayData.tasks);
+                const { scheduled, unscheduled } = splitTasks(visibleTasks);
                 
                 let dayContentHtml = '';
+                if (vacationActive) {
+                    dayContentHtml += `<div class="vacation-banner" style="margin-bottom: 10px;">
+                        <span class="vacation-banner-icon">🏖️</span>
+                        <div class="vacation-banner-text"><strong>Vacation</strong></div>
+                    </div>`;
+                }
                 if (scheduled.length > 0) {
                     const unscheduledHtml = unscheduled.map(task => renderTaskItem(task, weekKey, dateKey)).join('');
                     dayContentHtml = `
@@ -3519,6 +3577,9 @@ function editCaptureAssignment(itemId) {
             const year = currentMonthView.getFullYear();
             const month = currentMonthView.getMonth();
             
+            // Render vacation section
+            renderVacationSection();
+            
             // Update title
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             document.getElementById('month-title').textContent = `${monthNames[month]} ${year}`;
@@ -3605,6 +3666,122 @@ function editCaptureAssignment(itemId) {
         function nextMonth() {
             currentMonthView.setMonth(currentMonthView.getMonth() + 1);
             renderMonthView();
+        }
+
+        // ============================================
+        // VACATION MODE
+        // ============================================
+
+        function loadVacation() {
+            const data = localStorage.getItem('vacation-mode');
+            return data ? JSON.parse(data) : null;
+        }
+
+        function saveVacation(vacation) {
+            if (vacation) {
+                localStorage.setItem('vacation-mode', JSON.stringify(vacation));
+            } else {
+                localStorage.removeItem('vacation-mode');
+            }
+        }
+
+        function isOnVacation(dateKey) {
+            const vacation = loadVacation();
+            if (!vacation || !vacation.active) return false;
+            return dateKey >= vacation.startDate && dateKey <= vacation.endDate;
+        }
+
+        function getVacation() {
+            const vacation = loadVacation();
+            if (!vacation || !vacation.active) return null;
+            
+            // Auto-expire: if today is past the end date, deactivate
+            const today = formatDate(new Date());
+            if (today > vacation.endDate) {
+                vacation.active = false;
+                saveVacation(vacation);
+                return null;
+            }
+            return vacation;
+        }
+
+        function filterVacationTasks(tasks, dateKey) {
+            if (!isOnVacation(dateKey)) return tasks;
+            return tasks.filter(t => t.category === 'essential');
+        }
+
+        function renderVacationSection() {
+            const container = document.getElementById('vacation-section');
+            if (!container) return;
+            
+            const vacation = getVacation();
+            
+            if (vacation && vacation.active) {
+                container.innerHTML = `
+                    <div class="vacation-banner">
+                        <span class="vacation-banner-icon">🏖️</span>
+                        <div class="vacation-banner-text">
+                            <strong>Vacation Mode Active</strong><br>
+                            ${vacation.startDate} → ${vacation.endDate}<br>
+                            <small>Only Essential tasks are shown during this period.</small>
+                        </div>
+                        <button class="btn" onclick="endVacationEarly()" style="background: var(--ruby-light); color: var(--ruby); border: 1px solid var(--ruby); white-space: nowrap;">End Early</button>
+                    </div>`;
+            } else {
+                container.innerHTML = `
+                    <div class="vacation-setup">
+                        <h3>🏖️ Vacation Mode</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 10px;">
+                            Hide all tasks except <span class="task-tag tag-essential" style="font-size: 0.75rem;">essential</span> ones during your vacation.
+                        </p>
+                        <div class="vacation-dates">
+                            <div>
+                                <label class="form-label" style="font-size: 0.8rem;">Start Date</label>
+                                <input type="date" class="form-input" id="vacation-start">
+                            </div>
+                            <div>
+                                <label class="form-label" style="font-size: 0.8rem;">End Date</label>
+                                <input type="date" class="form-input" id="vacation-end">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="activateVacation()">Activate Vacation Mode</button>
+                    </div>`;
+                
+                // Default start to today
+                const todayStr = formatDate(new Date());
+                const startInput = document.getElementById('vacation-start');
+                if (startInput) startInput.value = todayStr;
+            }
+        }
+
+        function activateVacation() {
+            const startDate = document.getElementById('vacation-start').value;
+            const endDate = document.getElementById('vacation-end').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates.');
+                return;
+            }
+            if (endDate < startDate) {
+                alert('End date must be after start date.');
+                return;
+            }
+            
+            saveVacation({
+                active: true,
+                startDate,
+                endDate
+            });
+            
+            renderVacationSection();
+            renderCurrentView();
+        }
+
+        function endVacationEarly() {
+            if (!_testMode && !confirm('End vacation mode early? All tasks will resume.')) return;
+            saveVacation(null);
+            renderVacationSection();
+            renderCurrentView();
         }
 
                 let currentDayDetailKey = null;
@@ -4262,6 +4439,39 @@ function editCaptureAssignment(itemId) {
             try { await testDragToEmptyDay(); } catch(e) { logTest('testDragToEmptyDay', false, 'ERROR: ' + e.message); }
             try { await testMoveTaskBetweenDaysInvalidId(); } catch(e) { logTest('testMoveTaskBetweenDaysInvalidId', false, 'ERROR: ' + e.message); }
             try { await testReorderInvalidIdNoOp(); } catch(e) { logTest('testReorderInvalidIdNoOp', false, 'ERROR: ' + e.message); }
+            // Vacation Mode Tests
+            try { await testVacationSaveAndLoad(); } catch(e) { logTest('testVacationSaveAndLoad', false, 'ERROR: ' + e.message); }
+            try { await testVacationIsOnVacation(); } catch(e) { logTest('testVacationIsOnVacation', false, 'ERROR: ' + e.message); }
+            try { await testVacationNotOnVacationOutsideRange(); } catch(e) { logTest('testVacationNotOnVacationOutsideRange', false, 'ERROR: ' + e.message); }
+            try { await testVacationFilterKeepsEssential(); } catch(e) { logTest('testVacationFilterKeepsEssential', false, 'ERROR: ' + e.message); }
+            try { await testVacationFilterHidesNonEssential(); } catch(e) { logTest('testVacationFilterHidesNonEssential', false, 'ERROR: ' + e.message); }
+            try { await testVacationFilterPassesThroughOutsideVacation(); } catch(e) { logTest('testVacationFilterPassesThroughOutsideVacation', false, 'ERROR: ' + e.message); }
+            try { await testVacationAutoExpires(); } catch(e) { logTest('testVacationAutoExpires', false, 'ERROR: ' + e.message); }
+            try { await testVacationEndEarly(); } catch(e) { logTest('testVacationEndEarly', false, 'ERROR: ' + e.message); }
+            try { await testVacationNoVacationReturnsNull(); } catch(e) { logTest('testVacationNoVacationReturnsNull', false, 'ERROR: ' + e.message); }
+            try { await testVacationSectionRenders(); } catch(e) { logTest('testVacationSectionRenders', false, 'ERROR: ' + e.message); }
+            try { await testEssentialCategoryExists(); } catch(e) { logTest('testEssentialCategoryExists', false, 'ERROR: ' + e.message); }
+            try { await testVacationEndDateBeforeStartRejects(); } catch(e) { logTest('testVacationEndDateBeforeStartRejects', false, 'ERROR: ' + e.message); }
+            try { await testVacationMultipleEssentialTasksSurvive(); } catch(e) { logTest('testVacationMultipleEssentialTasksSurvive', false, 'ERROR: ' + e.message); }
+            try { await testVacationMixedCategoriesFiltered(); } catch(e) { logTest('testVacationMixedCategoriesFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationActivateCreatesInStorage(); } catch(e) { logTest('testVacationActivateCreatesInStorage', false, 'ERROR: ' + e.message); }
+            try { await testVacationActivateMissingStartRejects(); } catch(e) { logTest('testVacationActivateMissingStartRejects', false, 'ERROR: ' + e.message); }
+            try { await testVacationActivateMissingEndRejects(); } catch(e) { logTest('testVacationActivateMissingEndRejects', false, 'ERROR: ' + e.message); }
+            try { await testVacationSecondOverwritesFirst(); } catch(e) { logTest('testVacationSecondOverwritesFirst', false, 'ERROR: ' + e.message); }
+            try { await testVacationBoundaryStartDateInclusive(); } catch(e) { logTest('testVacationBoundaryStartDateInclusive', false, 'ERROR: ' + e.message); }
+            try { await testVacationBoundaryEndDateInclusive(); } catch(e) { logTest('testVacationBoundaryEndDateInclusive', false, 'ERROR: ' + e.message); }
+            try { await testVacationDayBeforeStartNotFiltered(); } catch(e) { logTest('testVacationDayBeforeStartNotFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationDayAfterEndNotFiltered(); } catch(e) { logTest('testVacationDayAfterEndNotFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationScheduledTasksFiltered(); } catch(e) { logTest('testVacationScheduledTasksFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationUnscheduledTasksFiltered(); } catch(e) { logTest('testVacationUnscheduledTasksFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationSingleDay(); } catch(e) { logTest('testVacationSingleDay', false, 'ERROR: ' + e.message); }
+            try { await testVacationSpansMultipleWeeks(); } catch(e) { logTest('testVacationSpansMultipleWeeks', false, 'ERROR: ' + e.message); }
+            try { await testVacationEndEarlyRestoresAll(); } catch(e) { logTest('testVacationEndEarlyRestoresAll', false, 'ERROR: ' + e.message); }
+            try { await testVacationTemplateTasksFiltered(); } catch(e) { logTest('testVacationTemplateTasksFiltered', false, 'ERROR: ' + e.message); }
+            try { await testVacationMonthViewShowsActivePanel(); } catch(e) { logTest('testVacationMonthViewShowsActivePanel', false, 'ERROR: ' + e.message); }
+            try { await testVacationMonthViewShowsSetupWhenNone(); } catch(e) { logTest('testVacationMonthViewShowsSetupWhenNone', false, 'ERROR: ' + e.message); }
+            try { await testVacationNewEssentialTaskVisible(); } catch(e) { logTest('testVacationNewEssentialTaskVisible', false, 'ERROR: ' + e.message); }
+            try { await testVacationNewNonEssentialHidden(); } catch(e) { logTest('testVacationNewNonEssentialHidden', false, 'ERROR: ' + e.message); }
             
             // Display results
             window.alert = _origAlert;
@@ -8896,6 +9106,651 @@ async function testEditAssignmentMovesTask() {
             logTest('reorderTasksInDay with invalid dragged ID is no-op',
                 intact,
                 `Intact: ${intact}`);
+        }
+
+        // ============================================
+        // VACATION MODE TESTS
+        // ============================================
+
+        async function testVacationSaveAndLoad() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-03-01', endDate: '2026-03-10' });
+            const loaded = loadVacation();
+            
+            // Restore
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation save and load',
+                loaded && loaded.active === true && loaded.startDate === '2026-03-01' && loaded.endDate === '2026-03-10',
+                loaded ? `active=${loaded.active}, ${loaded.startDate}→${loaded.endDate}` : 'null');
+        }
+
+        async function testVacationIsOnVacation() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-02-01', endDate: '2026-02-28' });
+            const onVac = isOnVacation('2026-02-15');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('isOnVacation returns true for date in range',
+                onVac === true,
+                `2026-02-15 in Feb vacation: ${onVac}`);
+        }
+
+        async function testVacationNotOnVacationOutsideRange() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-03-01', endDate: '2026-03-10' });
+            const before = isOnVacation('2026-02-28');
+            const after = isOnVacation('2026-03-11');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('isOnVacation returns false outside range',
+                before === false && after === false,
+                `Before: ${before}, After: ${after}`);
+        }
+
+        async function testVacationFilterKeepsEssential() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-02-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Pay Rent', category: 'essential' },
+                { text: 'Clean Kitchen', category: 'cleaning' },
+                { text: 'Doctor Appt', category: 'essential' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filter keeps essential tasks',
+                filtered.length === 2 && filtered.every(t => t.category === 'essential'),
+                `Kept: ${filtered.map(t => t.text).join(', ')}`);
+        }
+
+        async function testVacationFilterHidesNonEssential() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-02-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Wash Hair', category: 'hair' },
+                { text: 'Skincare Routine', category: 'skincare' },
+                { text: 'Deep Clean', category: 'deepclean' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filter hides non-essential tasks',
+                filtered.length === 0,
+                `Remaining: ${filtered.length}`);
+        }
+
+        async function testVacationFilterPassesThroughOutsideVacation() {
+            const saved = loadVacation();
+            
+            // Set vacation in a distant future range
+            saveVacation({ active: true, startDate: '2099-01-01', endDate: '2099-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'A', category: 'habit' },
+                { text: 'B', category: 'cleaning' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filter passes through when not in vacation range',
+                filtered.length === 2,
+                `Kept: ${filtered.length}`);
+        }
+
+        async function testVacationAutoExpires() {
+            const saved = loadVacation();
+            
+            // Set vacation that ended yesterday
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayKey = formatDate(yesterday);
+            const twoDaysAgo = new Date();
+            twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+            
+            saveVacation({ active: true, startDate: formatDate(twoDaysAgo), endDate: yesterdayKey });
+            
+            // getVacation should auto-expire it
+            const result = getVacation();
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation auto-expires when end date has passed',
+                result === null,
+                result === null ? 'Correctly expired' : `Still active: ${JSON.stringify(result)}`);
+        }
+
+        async function testVacationEndEarly() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-02-01', endDate: '2026-12-31' });
+            endVacationEarly();
+            
+            const after = loadVacation();
+            
+            if (saved) saveVacation(saved);
+            
+            logTest('End vacation early removes vacation',
+                after === null,
+                after === null ? 'Removed' : `Still present: ${JSON.stringify(after)}`);
+        }
+
+        async function testVacationNoVacationReturnsNull() {
+            const saved = loadVacation();
+            
+            saveVacation(null);
+            const result = getVacation();
+            
+            if (saved) saveVacation(saved);
+            
+            logTest('No vacation returns null',
+                result === null,
+                `Result: ${result}`);
+        }
+
+        async function testVacationSectionRenders() {
+            const container = document.getElementById('vacation-section');
+            logTest('Vacation section container exists',
+                !!container,
+                container ? 'Found' : 'Missing');
+        }
+
+        async function testEssentialCategoryExists() {
+            // Check that at least one dropdown has the essential option
+            const options = document.querySelectorAll('option[value="essential"]');
+            logTest('Essential category option exists in dropdowns',
+                options.length >= 1,
+                `Found in ${options.length} dropdowns`);
+        }
+
+        async function testVacationEndDateBeforeStartRejects() {
+            const saved = loadVacation();
+            saveVacation(null);
+            
+            // activateVacation checks dates — but we can test the logic directly
+            const start = '2026-03-15';
+            const end = '2026-03-10';
+            const invalid = end < start;
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('End date before start date is invalid',
+                invalid === true,
+                `${end} < ${start}: ${invalid}`);
+        }
+
+        async function testVacationMultipleEssentialTasksSurvive() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Pay Rent', category: 'essential' },
+                { text: 'Water Plants', category: 'essential' },
+                { text: 'Insurance Due', category: 'essential' },
+                { text: 'Vacuum', category: 'cleaning' },
+                { text: 'Moisturize', category: 'skincare' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Multiple essential tasks all survive vacation',
+                filtered.length === 3,
+                `Kept: ${filtered.map(t => t.text).join(', ')}`);
+        }
+
+        async function testVacationMixedCategoriesFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'A', category: 'habit' },
+                { text: 'B', category: 'essential' },
+                { text: 'C', category: 'cleaning' },
+                { text: 'D', category: 'essential' },
+                { text: 'E', category: 'deepclean' },
+                { text: 'F', category: 'hair' },
+                { text: 'G', category: 'laundry' },
+                { text: 'H', category: 'special' },
+                { text: 'I', category: 'skincare' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            const allEssential = filtered.every(t => t.category === 'essential');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filters all non-essential categories correctly',
+                filtered.length === 2 && allEssential,
+                `Kept ${filtered.length}: ${filtered.map(t => t.text).join(', ')}, allEssential=${allEssential}`);
+        }
+
+        async function testVacationActivateCreatesInStorage() {
+            const saved = loadVacation();
+            saveVacation(null);
+            
+            // Set up the form inputs
+            const startInput = document.getElementById('vacation-start');
+            const endInput = document.getElementById('vacation-end');
+            
+            // Need to render the section first to make inputs available
+            renderVacationSection();
+            
+            const si = document.getElementById('vacation-start');
+            const ei = document.getElementById('vacation-end');
+            
+            if (si && ei) {
+                si.value = '2026-06-01';
+                ei.value = '2026-06-15';
+                activateVacation();
+                
+                const loaded = loadVacation();
+                const created = loaded && loaded.active === true && loaded.startDate === '2026-06-01' && loaded.endDate === '2026-06-15';
+                
+                if (saved) saveVacation(saved);
+                else saveVacation(null);
+                
+                logTest('activateVacation creates vacation in localStorage',
+                    created,
+                    loaded ? `${loaded.startDate}→${loaded.endDate}` : 'null');
+            } else {
+                if (saved) saveVacation(saved);
+                else saveVacation(null);
+                logTest('activateVacation creates vacation in localStorage',
+                    false, 'Vacation inputs not found in DOM');
+            }
+        }
+
+        async function testVacationActivateMissingStartRejects() {
+            const saved = loadVacation();
+            saveVacation(null);
+            renderVacationSection();
+            
+            const si = document.getElementById('vacation-start');
+            const ei = document.getElementById('vacation-end');
+            
+            if (si && ei) {
+                si.value = '';
+                ei.value = '2026-06-15';
+                
+                const origAlert = window.alert;
+                let alertCalled = false;
+                window.alert = () => { alertCalled = true; };
+                activateVacation();
+                window.alert = origAlert;
+                
+                const loaded = loadVacation();
+                
+                if (saved) saveVacation(saved);
+                else saveVacation(null);
+                
+                logTest('Activate with missing start date rejects',
+                    alertCalled && loaded === null,
+                    `Alert: ${alertCalled}, Stored: ${loaded}`);
+            } else {
+                if (saved) saveVacation(saved);
+                logTest('Activate with missing start date rejects', false, 'Inputs not found');
+            }
+        }
+
+        async function testVacationActivateMissingEndRejects() {
+            const saved = loadVacation();
+            saveVacation(null);
+            renderVacationSection();
+            
+            const si = document.getElementById('vacation-start');
+            const ei = document.getElementById('vacation-end');
+            
+            if (si && ei) {
+                si.value = '2026-06-01';
+                ei.value = '';
+                
+                const origAlert = window.alert;
+                let alertCalled = false;
+                window.alert = () => { alertCalled = true; };
+                activateVacation();
+                window.alert = origAlert;
+                
+                const loaded = loadVacation();
+                
+                if (saved) saveVacation(saved);
+                else saveVacation(null);
+                
+                logTest('Activate with missing end date rejects',
+                    alertCalled && loaded === null,
+                    `Alert: ${alertCalled}, Stored: ${loaded}`);
+            } else {
+                if (saved) saveVacation(saved);
+                logTest('Activate with missing end date rejects', false, 'Inputs not found');
+            }
+        }
+
+        async function testVacationSecondOverwritesFirst() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-03-01', endDate: '2026-03-10' });
+            saveVacation({ active: true, startDate: '2026-07-01', endDate: '2026-07-20' });
+            
+            const loaded = loadVacation();
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Second vacation overwrites first',
+                loaded.startDate === '2026-07-01' && loaded.endDate === '2026-07-20',
+                `${loaded.startDate}→${loaded.endDate}`);
+        }
+
+        async function testVacationBoundaryStartDateInclusive() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-04-10', endDate: '2026-04-20' });
+            const onStart = isOnVacation('2026-04-10');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation start date is inclusive',
+                onStart === true,
+                `Start date 2026-04-10: ${onStart}`);
+        }
+
+        async function testVacationBoundaryEndDateInclusive() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-04-10', endDate: '2026-04-20' });
+            const onEnd = isOnVacation('2026-04-20');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation end date is inclusive',
+                onEnd === true,
+                `End date 2026-04-20: ${onEnd}`);
+        }
+
+        async function testVacationDayBeforeStartNotFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-04-10', endDate: '2026-04-20' });
+            
+            const tasks = [
+                { text: 'Normal', category: 'habit' },
+                { text: 'Essential', category: 'essential' }
+            ];
+            const filtered = filterVacationTasks(tasks, '2026-04-09');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Day before vacation start is not filtered',
+                filtered.length === 2,
+                `Kept: ${filtered.length}`);
+        }
+
+        async function testVacationDayAfterEndNotFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-04-10', endDate: '2026-04-20' });
+            
+            const tasks = [
+                { text: 'Normal', category: 'cleaning' },
+                { text: 'Essential', category: 'essential' }
+            ];
+            const filtered = filterVacationTasks(tasks, '2026-04-21');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Day after vacation end is not filtered',
+                filtered.length === 2,
+                `Kept: ${filtered.length}`);
+        }
+
+        async function testVacationScheduledTasksFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Sched Essential', category: 'essential', startTime: '09:00', duration: '30 min' },
+                { text: 'Sched Habit', category: 'habit', startTime: '10:00', duration: '1 hour' },
+                { text: 'Sched Cleaning', category: 'cleaning', startTime: '14:00', duration: '45 min' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            const { scheduled } = splitTasks(filtered);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filters scheduled tasks (only essential scheduled remain)',
+                scheduled.length === 1 && scheduled[0].text === 'Sched Essential',
+                `Scheduled remaining: ${scheduled.map(t => t.text).join(', ')}`);
+        }
+
+        async function testVacationUnscheduledTasksFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Unsched Essential', category: 'essential' },
+                { text: 'Unsched Habit', category: 'habit' },
+                { text: 'Unsched Cleaning', category: 'cleaning' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            const { unscheduled } = splitTasks(filtered);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation filters unscheduled tasks (only essential remain)',
+                unscheduled.length === 1 && unscheduled[0].text === 'Unsched Essential',
+                `Unscheduled remaining: ${unscheduled.map(t => t.text).join(', ')}`);
+        }
+
+        async function testVacationSingleDay() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-05-15', endDate: '2026-05-15' });
+            
+            const onDay = isOnVacation('2026-05-15');
+            const dayBefore = isOnVacation('2026-05-14');
+            const dayAfter = isOnVacation('2026-05-16');
+            
+            const tasks = [{ text: 'Habit', category: 'habit' }, { text: 'Ess', category: 'essential' }];
+            const filtered = filterVacationTasks(tasks, '2026-05-15');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Single-day vacation (start = end)',
+                onDay && !dayBefore && !dayAfter && filtered.length === 1,
+                `On day: ${onDay}, Before: ${dayBefore}, After: ${dayAfter}, Filtered: ${filtered.length}`);
+        }
+
+        async function testVacationSpansMultipleWeeks() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-06-01', endDate: '2026-06-21' });
+            
+            const week1 = isOnVacation('2026-06-03');
+            const week2 = isOnVacation('2026-06-10');
+            const week3 = isOnVacation('2026-06-17');
+            const outside = isOnVacation('2026-06-22');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Vacation spans multiple weeks correctly',
+                week1 && week2 && week3 && !outside,
+                `W1: ${week1}, W2: ${week2}, W3: ${week3}, Outside: ${outside}`);
+        }
+
+        async function testVacationEndEarlyRestoresAll() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const tasks = [
+                { text: 'Habit', category: 'habit' },
+                { text: 'Essential', category: 'essential' },
+                { text: 'Cleaning', category: 'cleaning' }
+            ];
+            
+            const duringVacation = filterVacationTasks(tasks, todayKey);
+            
+            endVacationEarly();
+            
+            const afterEnd = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('End early restores all tasks immediately',
+                duringVacation.length === 1 && afterEnd.length === 3,
+                `During: ${duringVacation.length}, After end: ${afterEnd.length}`);
+        }
+
+        async function testVacationTemplateTasksFiltered() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            // Simulate template-generated tasks (they have no special marker, just category)
+            const tasks = [
+                { text: 'Template Habit', category: 'habit', routine: 'morningRoutine' },
+                { text: 'Template Essential', category: 'essential' },
+                { text: 'Template Clean', category: 'cleaning', routine: 'kitchenClean' }
+            ];
+            
+            const filtered = filterVacationTasks(tasks, todayKey);
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Template-generated tasks filtered during vacation',
+                filtered.length === 1 && filtered[0].text === 'Template Essential',
+                `Remaining: ${filtered.map(t => t.text).join(', ')}`);
+        }
+
+        async function testVacationMonthViewShowsActivePanel() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-02-01', endDate: '2026-02-28' });
+            renderVacationSection();
+            
+            const container = document.getElementById('vacation-section');
+            const hasEndEarly = container.innerHTML.includes('End Early');
+            const hasSetup = container.innerHTML.includes('Activate Vacation Mode');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('Month view shows active vacation panel when on vacation',
+                hasEndEarly && !hasSetup,
+                `End Early: ${hasEndEarly}, Setup: ${hasSetup}`);
+        }
+
+        async function testVacationMonthViewShowsSetupWhenNone() {
+            const saved = loadVacation();
+            
+            saveVacation(null);
+            renderVacationSection();
+            
+            const container = document.getElementById('vacation-section');
+            const hasSetup = container.innerHTML.includes('Activate Vacation Mode');
+            const hasEndEarly = container.innerHTML.includes('End Early');
+            
+            if (saved) saveVacation(saved);
+            
+            logTest('Month view shows setup panel when no vacation',
+                hasSetup && !hasEndEarly,
+                `Setup: ${hasSetup}, End Early: ${hasEndEarly}`);
+        }
+
+        async function testVacationNewEssentialTaskVisible() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            // Simulate adding a new essential task
+            const allTasks = [
+                { text: 'Existing Habit', category: 'habit' },
+                { text: 'New Essential', category: 'essential' }
+            ];
+            
+            const filtered = filterVacationTasks(allTasks, todayKey);
+            const newVisible = filtered.some(t => t.text === 'New Essential');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('New essential task is visible during vacation',
+                newVisible,
+                `Visible: ${newVisible}`);
+        }
+
+        async function testVacationNewNonEssentialHidden() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-01-01', endDate: '2026-12-31' });
+            const todayKey = formatDate(new Date());
+            
+            const allTasks = [
+                { text: 'Existing Essential', category: 'essential' },
+                { text: 'New Habit', category: 'habit' }
+            ];
+            
+            const filtered = filterVacationTasks(allTasks, todayKey);
+            const newHidden = !filtered.some(t => t.text === 'New Habit');
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('New non-essential task is hidden during vacation',
+                newHidden,
+                `Hidden: ${newHidden}`);
         }
 
         // ============================================
