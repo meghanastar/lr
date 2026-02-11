@@ -1393,7 +1393,7 @@
         }
 
 
-        function renderCaptureList() {
+                function renderCaptureList() {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const container = document.getElementById('capture-list-content');
             
@@ -1403,37 +1403,82 @@
                 filteredItems = captureList.filter(item => item.status === 'unassigned');
             } else if (currentCaptureFilter === 'assigned') {
                 filteredItems = captureList.filter(item => item.status === 'assigned');
+            } else if (currentCaptureFilter === 'completed') {
+                filteredItems = captureList.filter(item => item.status === 'completed');
             }
             
             if (filteredItems.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-lighter); text-align: center; padding: 40px 20px;">No capture items yet! Click "+ Add Item" to get started.</p>';
+                let emptyMessage = 'No capture items yet! Click "+ Add Item" to get started.';
+                if (currentCaptureFilter === 'completed') {
+                    emptyMessage = 'No completed items yet!';
+                } else if (currentCaptureFilter === 'unassigned') {
+                    emptyMessage = 'All items are assigned! 🎉';
+                } else if (currentCaptureFilter === 'assigned') {
+                    emptyMessage = 'No assigned items yet!';
+                }
+                container.innerHTML = `<p style="color: var(--text-lighter); text-align: center; padding: 40px 20px;">${emptyMessage}</p>`;
                 return;
             }
             
             let html = '';
             filteredItems.forEach(item => {
-                const statusClass = item.status === 'unassigned' ? 'unassigned' : 'assigned';
-                const assignmentInfo = item.assignedTo 
-                    ? `<div style="font-size: 0.85rem; color: var(--primary); margin-top: 5px;">📅 Scheduled for ${item.assignedTo.dateKey}${item.assignedTo.time ? ` at ${item.assignedTo.time}` : ''}</div>`
-                    : '';
+                const statusClass = item.status === 'unassigned' ? 'unassigned' : 
+                                   item.status === 'completed' ? 'completed' : 'assigned';
+                
+                let assignmentInfo = '';
+                if (item.assignedTo) {
+                    if (item.assignedTo.recurring) {
+                        const freqDisplay = item.assignedTo.frequency === 'daily' ? 'Daily' :
+                                          item.assignedTo.frequency === 'monthly' ? 'Monthly' :
+                                          `${item.assignedTo.days.join(', ')}`;
+                        assignmentInfo = `<div style="font-size: 0.85rem; color: var(--primary); margin-top: 5px;">🔄 Recurring: ${freqDisplay} (starts ${item.assignedTo.startDate})</div>`;
+                    } else {
+                        assignmentInfo = `<div style="font-size: 0.85rem; color: var(--primary); margin-top: 5px;">📅 Scheduled for ${item.assignedTo.dateKey}${item.assignedTo.time ? ` at ${item.assignedTo.time}` : ''}</div>`;
+                    }
+                }
+                
+                let completedInfo = '';
+                if (item.status === 'completed' && item.completedAt) {
+                    completedInfo = `<div style="font-size: 0.85rem; color: var(--emerald); margin-top: 5px;">✅ Completed: ${new Date(item.completedAt).toLocaleDateString()}</div>`;
+                }
+                
+                // Action buttons based on status
+                let actionButtons = '';
+                if (item.status === 'unassigned') {
+                    actionButtons = `
+                        <button class="task-action-btn-small btn-edit" onclick="assignCaptureItem(${item.id})">📅 Assign to Day</button>
+                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
+                    `;
+                } else if (item.status === 'assigned') {
+                    actionButtons = `
+                        <button class="task-action-btn-small btn-edit" onclick="editCaptureAssignment(${item.id})">✏️ Edit Assignment</button>
+                        <button class="task-action-btn-small" style="background: var(--amethyst);" onclick="unassignCaptureItem(${item.id})">↩️ Unassign</button>
+                        <button class="task-action-btn-small" style="background: var(--emerald);" onclick="completeCaptureItem(${item.id})">✓ Mark Complete</button>
+                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
+                    `;
+                } else if (item.status === 'completed') {
+                    actionButtons = `
+                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete Permanently</button>
+                    `;
+                }
                 
                 html += `
                     <div class="capture-item ${statusClass}">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                             <div style="flex: 1;">
-                                <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px;">${item.text}</div>
+                                <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px; ${item.status === 'completed' ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${item.text}</div>
                                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                                    <span class="task-tag tag-${item.category}">${item.category}</span>
+                                    <span class="task-tag tag-${item.captureCategory}">${item.captureCategory}</span>
                                     ${item.priority ? `<span style="font-size: 0.85rem; color: var(--text-lighter);">Priority: ${item.priority}</span>` : ''}
-                                    <span class="capture-status ${statusClass}">${item.status === 'unassigned' ? 'Unassigned' : 'Assigned'}</span>
+                                    <span class="capture-status ${statusClass}">${item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
                                 </div>
                                 ${assignmentInfo}
+                                ${completedInfo}
                             </div>
                         </div>
                         ${item.notes ? `<div style="font-size: 0.9rem; color: var(--text-lighter); margin-bottom: 10px; font-style: italic;">${item.notes}</div>` : ''}
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            ${item.status === 'unassigned' ? `<button class="task-action-btn-small btn-edit" onclick="assignCaptureItem(${item.id})">📅 Assign to Day</button>` : ''}
-                            <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
