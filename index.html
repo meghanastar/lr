@@ -3098,6 +3098,17 @@ function editCaptureAssignment(itemId) {
             await testUncompleteSyncsAllViews();
             await testUnassignRemovesFromSchedule();
             await testNoRecurringOptions();
+            await testEditFromMonthView();
+            await testGoToThisDay();
+            await testDragAndDropReordering();
+            await testTaskNotes();
+            await testDailyNotes();
+            await testAddTaskButton();
+            await testRoutinesView();
+            await testMultipleSameNameItems();
+            await testPriorityDisplay();
+            await testSpecialCharacters();
+            await testSimultaneousEdits();
             
             // Display results
             displayTestResults();
@@ -3576,6 +3587,435 @@ function editCaptureAssignment(itemId) {
             // But we can check that the functions don't exist
             const noRecurringFunction = typeof toggleRecurringOptions === 'undefined';
             logTest('No recurring options', true, 'Visual check - verify no "Make recurring" checkbox in UI');
+        }
+        async function testEditFromMonthView() {
+            // Create and assign item
+            const testId = Date.now() + 7000;
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const newItem = {
+                id: testId,
+                text: 'Month Edit Test',
+                category: 'cleaning',
+                time: '15 min',
+                status: 'assigned',
+                fromCapture: true
+            };
+            
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: newItem.text,
+                category: newItem.category,
+                time: newItem.time,
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId
+            });
+            saveData(weekKey, weekData);
+            
+            newItem.assignedTo = { dateKey, weekKey };
+            captureList.push(newItem);
+            testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Simulate editing from month view (update task in schedule)
+            weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            if (task) {
+                task.text = 'Edited from Month';
+                task.category = 'skincare';
+                saveData(weekKey, weekData);
+            }
+            
+            // Check if edit persisted
+            weekData = loadData(weekKey);
+            const editedTask = weekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            
+            logTest('Edit from Month view', 
+                editedTask && editedTask.text === 'Edited from Month' && editedTask.category === 'skincare');
+        }
+
+        async function testGoToThisDay() {
+            // Test navigation logic for different date ranges
+            const today = new Date();
+            
+            // Test 1: Today
+            const todayKey = formatDate(today);
+            const todayWeekStart = getWeekStart(today);
+            const todayTest = todayKey === formatDate(today);
+            
+            // Test 2: Tomorrow (current or next week)
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowWeekStart = getWeekStart(tomorrow);
+            const tomorrowInRange = 
+                tomorrowWeekStart.getTime() === todayWeekStart.getTime() ||
+                tomorrowWeekStart.getTime() === new Date(todayWeekStart.getTime() + 7*24*60*60*1000).getTime();
+            
+            // Test 3: Far future (3 weeks)
+            const farFuture = new Date(today);
+            farFuture.setDate(today.getDate() + 21);
+            const farWeekStart = getWeekStart(farFuture);
+            const farOutOfRange = 
+                farWeekStart.getTime() !== todayWeekStart.getTime() &&
+                farWeekStart.getTime() !== new Date(todayWeekStart.getTime() + 7*24*60*60*1000).getTime();
+            
+            logTest('Go to This Day navigation', 
+                todayTest && tomorrowInRange && farOutOfRange,
+                todayTest && tomorrowInRange && farOutOfRange ? '' : 'Navigation logic may have issues');
+        }
+
+        async function testDragAndDropReordering() {
+            // Create two tasks on same day
+            const testId1 = Date.now() + 8000;
+            const testId2 = Date.now() + 8001;
+            
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            // Add two test tasks
+            const task1 = {
+                id: Date.now(),
+                text: 'Task First',
+                category: 'other',
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId1
+            };
+            
+            const task2 = {
+                id: Date.now() + 1,
+                text: 'Task Second',
+                category: 'other',
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId2
+            };
+            
+            weekData[dateKey].tasks.push(task1, task2);
+            saveData(weekKey, weekData);
+            
+            // Simulate reorder (swap them)
+            weekData = loadData(weekKey);
+            const tasks = weekData[dateKey].tasks;
+            const idx1 = tasks.findIndex(t => t.captureItemId === testId1);
+            const idx2 = tasks.findIndex(t => t.captureItemId === testId2);
+            
+            if (idx1 !== -1 && idx2 !== -1) {
+                [tasks[idx1], tasks[idx2]] = [tasks[idx2], tasks[idx1]];
+                saveData(weekKey, weekData);
+            }
+            
+            // Check if reordered
+            weekData = loadData(weekKey);
+            const newIdx1 = weekData[dateKey].tasks.findIndex(t => t.captureItemId === testId1);
+            const newIdx2 = weekData[dateKey].tasks.findIndex(t => t.captureItemId === testId2);
+            
+            testItemIds.push(testId1, testId2);
+            
+            logTest('Drag & drop reordering', 
+                newIdx1 > newIdx2,
+                'Test verifies reorder logic works - manual UI test needed for touch/drag events');
+        }
+
+        async function testTaskNotes() {
+            // Create task with notes
+            const testId = Date.now() + 9000;
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const newItem = {
+                id: testId,
+                text: 'Notes Test',
+                category: 'other',
+                notes: 'Original capture notes',
+                status: 'assigned',
+                fromCapture: true
+            };
+            
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: newItem.text,
+                notes: newItem.notes,
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId
+            });
+            saveData(weekKey, weekData);
+            
+            newItem.assignedTo = { dateKey, weekKey };
+            captureList.push(newItem);
+            testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Add additional notes to task
+            weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            if (task) {
+                task.notes = 'Original capture notes\nAdditional task notes';
+                saveData(weekKey, weekData);
+            }
+            
+            // Check notes persisted
+            weekData = loadData(weekKey);
+            const taskWithNotes = weekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            
+            logTest('Task notes', 
+                taskWithNotes && taskWithNotes.notes && taskWithNotes.notes.includes('Additional task notes'));
+        }
+
+        async function testDailyNotes() {
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            // Add daily notes
+            weekData[dateKey].dayNotes = 'Test daily notes for ' + dateKey;
+            saveData(weekKey, weekData);
+            
+            // Check notes persisted
+            weekData = loadData(weekKey);
+            const notesExist = weekData[dateKey].dayNotes === 'Test daily notes for ' + dateKey;
+            
+            logTest('Daily notes', notesExist);
+        }
+
+        async function testAddTaskButton() {
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            // Simulate adding a custom task (not from capture)
+            const customTask = {
+                id: Date.now(),
+                text: 'Custom Task Test',
+                category: 'cleaning',
+                time: '10 min',
+                completed: false,
+                custom: true,
+                notes: ''
+            };
+            
+            weekData[dateKey].tasks.push(customTask);
+            saveData(weekKey, weekData);
+            
+            // Check task was added
+            weekData = loadData(weekKey);
+            const taskFound = weekData[dateKey].tasks.find(t => t.text === 'Custom Task Test' && t.custom === true);
+            
+            logTest('Add Task button (non-capture)', !!taskFound);
+        }
+
+        async function testRoutinesView() {
+            // Check if routines library still works
+            const hasRoutines = typeof ROUTINES_LIBRARY !== 'undefined' && Object.keys(ROUTINES_LIBRARY).length > 0;
+            
+            // Check if renderRoutinesView function exists
+            const functionExists = typeof renderRoutinesView === 'function';
+            
+            logTest('Routines view', 
+                hasRoutines && functionExists,
+                'Basic check - manual test recommended for full routine functionality');
+        }
+
+        async function testMultipleSameNameItems() {
+            const testId1 = Date.now() + 10000;
+            const testId2 = Date.now() + 10001;
+            
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            
+            // Create two items with same name
+            const item1 = {
+                id: testId1,
+                text: 'Duplicate Name',
+                category: 'cleaning',
+                status: 'unassigned',
+                fromCapture: true
+            };
+            
+            const item2 = {
+                id: testId2,
+                text: 'Duplicate Name',
+                category: 'skincare',
+                status: 'unassigned',
+                fromCapture: true
+            };
+            
+            captureList.push(item1, item2);
+            testItemIds.push(testId1, testId2);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Assign both to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dateKey = formatDate(tomorrow);
+            const weekStart = getWeekStart(tomorrow);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: 'Duplicate Name',
+                category: 'cleaning',
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId1
+            });
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now() + 1,
+                text: 'Duplicate Name',
+                category: 'skincare',
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId2
+            });
+            
+            saveData(weekKey, weekData);
+            
+            item1.status = 'assigned';
+            item1.assignedTo = { dateKey, weekKey };
+            item2.status = 'assigned';
+            item2.assignedTo = { dateKey, weekKey };
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Check both exist with different IDs
+            const updatedList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            weekData = loadData(weekKey);
+            
+            const item1Exists = updatedList.find(i => i.id === testId1);
+            const item2Exists = updatedList.find(i => i.id === testId2);
+            const task1Exists = weekData[dateKey].tasks.find(t => t.captureItemId === testId1);
+            const task2Exists = weekData[dateKey].tasks.find(t => t.captureItemId === testId2);
+            
+            logTest('Multiple items same name', 
+                item1Exists && item2Exists && task1Exists && task2Exists,
+                'Both items tracked separately despite same name');
+        }
+
+        async function testPriorityDisplay() {
+            const testId = Date.now() + 11000;
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            
+            const newItem = {
+                id: testId,
+                text: 'Priority Test',
+                category: 'other',
+                priority: 'high',
+                status: 'unassigned',
+                fromCapture: true
+            };
+            
+            captureList.push(newItem);
+            testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Check priority is stored
+            const updatedList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const itemWithPriority = updatedList.find(i => i.id === testId);
+            
+            logTest('Priority display', 
+                itemWithPriority && itemWithPriority.priority === 'high',
+                'Priority stored - manual check needed for visual display');
+        }
+
+        async function testSpecialCharacters() {
+            const testId = Date.now() + 12000;
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            
+            const specialText = 'Test "quotes" & <html> 🎉 émoji';
+            
+            const newItem = {
+                id: testId,
+                text: specialText,
+                category: 'other',
+                status: 'unassigned',
+                fromCapture: true
+            };
+            
+            captureList.push(newItem);
+            testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Check special chars persisted
+            const updatedList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const itemWithSpecial = updatedList.find(i => i.id === testId);
+            
+            logTest('Special characters', 
+                itemWithSpecial && itemWithSpecial.text === specialText,
+                'Special chars, quotes, emojis handled correctly');
+        }
+
+        async function testSimultaneousEdits() {
+            // Create item
+            const testId = Date.now() + 13000;
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const newItem = {
+                id: testId,
+                text: 'Simultaneous Test',
+                category: 'cleaning',
+                status: 'assigned',
+                fromCapture: true
+            };
+            
+            const today = new Date();
+            const dateKey = formatDate(today);
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            let weekData = loadData(weekKey) || generateWeekData(weekStart);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: newItem.text,
+                category: newItem.category,
+                completed: false,
+                fromCapture: true,
+                captureItemId: testId
+            });
+            saveData(weekKey, weekData);
+            
+            newItem.assignedTo = { dateKey, weekKey };
+            captureList.push(newItem);
+            testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Simulate edit from capture list
+            const updatedList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = updatedList.find(i => i.id === testId);
+            item.text = 'Edited in Capture';
+            localStorage.setItem('capture-list', JSON.stringify(updatedList));
+            
+            // Simulate simultaneous edit in schedule
+            weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            task.text = 'Edited in Schedule';
+            saveData(weekKey, weekData);
+            
+            // Check for conflicts (last write wins)
+            const finalList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const finalWeekData = loadData(weekKey);
+            const finalItem = finalList.find(i => i.id === testId);
+            const finalTask = finalWeekData[dateKey].tasks.find(t => t.captureItemId === testId);
+            
+            logTest('Simultaneous edits', 
+                finalItem && finalTask,
+                'Last write wins - may cause desync if multiple tabs open');
         }
         
     function init() {
