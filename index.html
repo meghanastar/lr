@@ -334,6 +334,23 @@
         .task-item.drag-over {
             border-top: 3px solid var(--primary);
         }
+        
+        .drag-handle {
+            display: none;
+            cursor: grab;
+            padding: 4px 2px;
+            color: var(--text-lighter);
+            font-size: 1.1rem;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            flex-shrink: 0;
+            align-self: center;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        @media (max-width: 768px) {
+            .drag-handle { display: block; }
+        }
         /* Capture List */
         .filter-btn {
             padding: 8px 16px;
@@ -2954,14 +2971,15 @@ function editCaptureAssignment(itemId) {
                         data-week-key="${weekKey}"
                         data-date-key="${dateKey}"
                         data-task-id="${task.id}"
-                        ontouchstart="handleTouchStart(event)"
-                         ontouchmove="handleTouchMove(event)"
-                         ontouchend="handleTouchEnd(event)"
                          ondragstart="handleDragStart(event, '${weekKey}', '${dateKey}', ${task.id})"
                          ondragover="handleDragOver(event)"
                          ondrop="handleDrop(event, '${weekKey}', '${dateKey}', ${task.id})"
                          ondragend="handleDragEnd(event)"
                          onclick="toggleTaskDetails('${weekKey}', '${dateKey}', ${task.id})">
+                        <div class="drag-handle"
+                             ontouchstart="handleTouchStart(event)"
+                             ontouchmove="handleTouchMove(event)"
+                             ontouchend="handleTouchEnd(event)">⠿</div>
                         <div class="checkbox ${task.completed ? 'checked' : ''}" 
                              onclick="toggleTask('${weekKey}', '${dateKey}', ${task.id}, event)"></div>
                         <div class="task-content">
@@ -3739,10 +3757,12 @@ function editCaptureAssignment(itemId) {
 
 
         function handleDragStart(event, weekKey, dateKey, taskId) {
-            event.stopPropagation(); // Prevent expanding task
+            event.stopPropagation();
             draggedTask = { weekKey, dateKey, taskId };
             event.currentTarget.classList.add('dragging');
             event.dataTransfer.effectAllowed = 'move';
+            // Required for Firefox
+            event.dataTransfer.setData('text/plain', '');
         }
 
         function handleDragOver(event) {
@@ -3750,6 +3770,9 @@ function editCaptureAssignment(itemId) {
             event.dataTransfer.dropEffect = 'move';
             
             const target = event.currentTarget;
+            document.querySelectorAll('.drag-over').forEach(el => {
+                if (el !== target) el.classList.remove('drag-over');
+            });
             if (target.classList.contains('task-item') && !target.classList.contains('dragging')) {
                 target.classList.add('drag-over');
             }
@@ -3761,17 +3784,17 @@ function editCaptureAssignment(itemId) {
             
             if (!draggedTask) return;
             
-            // Remove drag-over class
             document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
             
-            // Same day reorder
+            if (draggedTask.taskId === targetTaskId) return;
+            
             if (draggedTask.weekKey === targetWeekKey && draggedTask.dateKey === targetDateKey) {
                 reorderTasksInDay(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetTaskId);
-            } 
-            // Move between days
-            else {
+            } else {
                 moveTaskBetweenDays(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetWeekKey, targetDateKey);
             }
+            
+            draggedTask = null;
         }
 
         function handleDragEnd(event) {
@@ -3788,109 +3811,107 @@ function editCaptureAssignment(itemId) {
             const targetIndex = tasks.findIndex(t => t.id === targetTaskId);
             
             if (draggedIndex === -1 || targetIndex === -1) return;
+            if (draggedIndex === targetIndex) return;
             
-            // Remove dragged task
             const [draggedTaskObj] = tasks.splice(draggedIndex, 1);
             
-            // Insert at new position
-            tasks.splice(targetIndex, 0, draggedTaskObj);
+            // Recalculate target index after removal (fixes off-by-one)
+            const newTargetIndex = tasks.findIndex(t => t.id === targetTaskId);
+            tasks.splice(newTargetIndex, 0, draggedTaskObj);
             
             saveData(weekKey, weekData);
-            renderCurrentView();
+            if (!_testMode) renderCurrentView();
         }
 
         function moveTaskBetweenDays(sourceWeekKey, sourceDateKey, taskId, targetWeekKey, targetDateKey) {
-            // Load source week
             const sourceWeekData = loadData(sourceWeekKey);
             const taskIndex = sourceWeekData[sourceDateKey].tasks.findIndex(t => t.id === taskId);
             
             if (taskIndex === -1) return;
             
-            // Get task and remove from source
-            const task = sourceWeekData[sourceDateKey].tasks[taskIndex];
-            sourceWeekData[sourceDateKey].tasks.splice(taskIndex, 1);
+            const task = sourceWeekData[sourceDateKey].tasks.splice(taskIndex, 1)[0];
             saveData(sourceWeekKey, sourceWeekData);
             
-            // Add to target
-            let targetWeekData;
-            if (sourceWeekKey === targetWeekKey) {
-                targetWeekData = sourceWeekData;
-            } else {
-                targetWeekData = loadData(targetWeekKey);
-            }
+            // Always reload fresh to avoid stale data
+            const targetWeekData = loadData(targetWeekKey);
+            if (!targetWeekData || !targetWeekData[targetDateKey]) return;
             
+            task.id = Date.now() + Math.random();
             targetWeekData[targetDateKey].tasks.push(task);
             saveData(targetWeekKey, targetWeekData);
             
-            renderCurrentView();
-            alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
+            if (!_testMode) renderCurrentView();
         }
-        // Touch support for mobile
+
+        // Touch drag support for mobile (via drag handle only)
         let touchStartY = 0;
+        let touchStartX = 0;
         let touchCurrentY = 0;
         let touchedElement = null;
+        let touchedTaskItem = null;
         let isDragging = false;
-        let dragThreshold = 10; // pixels to move before starting drag
+        let dragClone = null;
+        const dragThreshold = 10;
 
         function handleTouchStart(event) {
-            // Don't start drag if clicking checkbox or buttons
-            if (event.target.closest('.checkbox') || 
-                event.target.closest('button') || 
-                event.target.closest('textarea') ||
-                event.target.closest('input')) {
-                return;
-            }
+            event.stopPropagation();
+            event.preventDefault();
             
-            touchedElement = event.currentTarget;
+            const handle = event.currentTarget;
+            touchedTaskItem = handle.closest('.task-item');
+            if (!touchedTaskItem) return;
+            
+            touchedElement = touchedTaskItem;
             touchStartY = event.touches[0].clientY;
+            touchStartX = event.touches[0].clientX;
             touchCurrentY = touchStartY;
             isDragging = false;
             
-            // Add a slight delay to distinguish tap from drag
-            setTimeout(() => {
-                if (touchedElement && Math.abs(touchCurrentY - touchStartY) > dragThreshold) {
-                    isDragging = true;
-                    touchedElement.classList.add('dragging');
-                    
-                    // Get task data
-                    draggedTask = {
-                        weekKey: touchedElement.dataset.weekKey,
-                        dateKey: touchedElement.dataset.dateKey,
-                        taskId: parseInt(touchedElement.dataset.taskId)
-                    };
-                }
-            }, 100);
+            draggedTask = {
+                weekKey: touchedTaskItem.dataset.weekKey,
+                dateKey: touchedTaskItem.dataset.dateKey,
+                taskId: parseInt(touchedTaskItem.dataset.taskId)
+            };
         }
 
         function handleTouchMove(event) {
-            if (!touchedElement) return;
+            if (!touchedElement || !draggedTask) return;
             
-            touchCurrentY = event.touches[0].clientY;
+            const touch = event.touches[0];
+            touchCurrentY = touch.clientY;
             
-            // Start dragging if moved enough
-            if (!isDragging && Math.abs(touchCurrentY - touchStartY) > dragThreshold) {
+            const deltaY = Math.abs(touchCurrentY - touchStartY);
+            const deltaX = Math.abs(touch.clientX - touchStartX);
+            
+            if (!isDragging && (deltaY > dragThreshold || deltaX > dragThreshold)) {
                 isDragging = true;
                 touchedElement.classList.add('dragging');
                 
-                draggedTask = {
-                    weekKey: touchedElement.dataset.weekKey,
-                    dateKey: touchedElement.dataset.dateKey,
-                    taskId: parseInt(touchedElement.dataset.taskId)
-                };
+                dragClone = touchedElement.cloneNode(true);
+                dragClone.style.cssText = 
+                    'position:fixed;z-index:9999;pointer-events:none;' +
+                    'width:' + touchedElement.offsetWidth + 'px;' +
+                    'opacity:0.8;transform:scale(1.02);' +
+                    'box-shadow:0 4px 15px rgba(0,0,0,0.2);' +
+                    'left:' + (touchStartX - 20) + 'px;top:' + (touchCurrentY - 20) + 'px;';
+                document.body.appendChild(dragClone);
             }
             
             if (isDragging) {
-                event.preventDefault(); // Prevent scrolling while dragging
+                event.preventDefault();
                 
-                // Find element under finger
-                const touch = event.touches[0];
+                if (dragClone) {
+                    dragClone.style.top = (touchCurrentY - 20) + 'px';
+                }
+                
+                if (dragClone) dragClone.style.display = 'none';
                 const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (dragClone) dragClone.style.display = '';
+                
                 const taskBelow = elementBelow?.closest('.task-item');
                 
-                // Remove all drag-over classes
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 
-                // Add drag-over to element under finger
                 if (taskBelow && taskBelow !== touchedElement) {
                     taskBelow.classList.add('drag-over');
                 }
@@ -3900,8 +3921,12 @@ function editCaptureAssignment(itemId) {
         function handleTouchEnd(event) {
             if (!touchedElement) return;
             
-            // If we were dragging, handle the drop
             if (isDragging && draggedTask) {
+                if (dragClone) {
+                    dragClone.remove();
+                    dragClone = null;
+                }
+                
                 const touch = event.changedTouches[0];
                 const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
                 const taskBelow = elementBelow?.closest('.task-item');
@@ -3911,29 +3936,25 @@ function editCaptureAssignment(itemId) {
                     const targetDateKey = taskBelow.dataset.dateKey;
                     const targetTaskId = parseInt(taskBelow.dataset.taskId);
                     
-                    // Same day reorder
-                    if (draggedTask.weekKey === targetWeekKey && draggedTask.dateKey === targetDateKey) {
-                        reorderTasksInDay(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetTaskId);
-                    } 
-                    // Move between days
-                    else {
-                        moveTaskBetweenDays(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetWeekKey, targetDateKey);
+                    if (draggedTask.taskId !== targetTaskId) {
+                        if (draggedTask.weekKey === targetWeekKey && draggedTask.dateKey === targetDateKey) {
+                            reorderTasksInDay(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetTaskId);
+                        } else {
+                            moveTaskBetweenDays(draggedTask.weekKey, draggedTask.dateKey, draggedTask.taskId, targetWeekKey, targetDateKey);
+                        }
                     }
                 }
                 
-                // Prevent click event from firing
                 event.preventDefault();
-            } else if (!isDragging) {
-                // It was a tap, not a drag - let click handler work
-                // Don't prevent default here
             }
             
-            // Cleanup
             touchedElement?.classList.remove('dragging');
             document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
             touchedElement = null;
+            touchedTaskItem = null;
             draggedTask = null;
             isDragging = false;
+            dragClone = null;
         }
 
 
@@ -4219,6 +4240,28 @@ function editCaptureAssignment(itemId) {
             try { await testOverlapNoDurationVsExistingWithDuration(); } catch(e) { logTest('testOverlapNoDurationVsExistingWithDuration', false, 'ERROR: ' + e.message); }
             try { await testOverlapMultipleConflictsReportsFirst(); } catch(e) { logTest('testOverlapMultipleConflictsReportsFirst', false, 'ERROR: ' + e.message); }
             try { await testQuickTomorrowWithOverlapShowsWarning(); } catch(e) { logTest('testQuickTomorrowWithOverlapShowsWarning', false, 'ERROR: ' + e.message); }
+            // Drag & Drop Tests
+            try { await testReorderTasksDownward(); } catch(e) { logTest('testReorderTasksDownward', false, 'ERROR: ' + e.message); }
+            try { await testReorderTasksUpward(); } catch(e) { logTest('testReorderTasksUpward', false, 'ERROR: ' + e.message); }
+            try { await testReorderSamePositionNoChange(); } catch(e) { logTest('testReorderSamePositionNoChange', false, 'ERROR: ' + e.message); }
+            try { await testDragBetweenDays(); } catch(e) { logTest('testDragBetweenDays', false, 'ERROR: ' + e.message); }
+            try { await testDragBetweenDaysPreservesFields(); } catch(e) { logTest('testDragBetweenDaysPreservesFields', false, 'ERROR: ' + e.message); }
+            try { await testDragDropOnSelfNoOp(); } catch(e) { logTest('testDragDropOnSelfNoOp', false, 'ERROR: ' + e.message); }
+            try { await testDragHandleExists(); } catch(e) { logTest('testDragHandleExists', false, 'ERROR: ' + e.message); }
+            try { await testReorderThreeTasksMiddleToTop(); } catch(e) { logTest('testReorderThreeTasksMiddleToTop', false, 'ERROR: ' + e.message); }
+            try { await testReorderAdjacentSwapDown(); } catch(e) { logTest('testReorderAdjacentSwapDown', false, 'ERROR: ' + e.message); }
+            try { await testReorderAdjacentSwapUp(); } catch(e) { logTest('testReorderAdjacentSwapUp', false, 'ERROR: ' + e.message); }
+            try { await testReorderLastToFirstLongList(); } catch(e) { logTest('testReorderLastToFirstLongList', false, 'ERROR: ' + e.message); }
+            try { await testReorderPreservesTaskFields(); } catch(e) { logTest('testReorderPreservesTaskFields', false, 'ERROR: ' + e.message); }
+            try { await testDragBetweenDaysCountChanges(); } catch(e) { logTest('testDragBetweenDaysCountChanges', false, 'ERROR: ' + e.message); }
+            try { await testDragBetweenDaysNotACopy(); } catch(e) { logTest('testDragBetweenDaysNotACopy', false, 'ERROR: ' + e.message); }
+            try { await testDragCompletedBetweenDays(); } catch(e) { logTest('testDragCompletedBetweenDays', false, 'ERROR: ' + e.message); }
+            try { await testDragScheduledBetweenDaysKeepsTime(); } catch(e) { logTest('testDragScheduledBetweenDaysKeepsTime', false, 'ERROR: ' + e.message); }
+            try { await testDragHandleHiddenDesktopCSS(); } catch(e) { logTest('testDragHandleHiddenDesktopCSS', false, 'ERROR: ' + e.message); }
+            try { await testReorderSingleTaskNoOp(); } catch(e) { logTest('testReorderSingleTaskNoOp', false, 'ERROR: ' + e.message); }
+            try { await testDragToEmptyDay(); } catch(e) { logTest('testDragToEmptyDay', false, 'ERROR: ' + e.message); }
+            try { await testMoveTaskBetweenDaysInvalidId(); } catch(e) { logTest('testMoveTaskBetweenDaysInvalidId', false, 'ERROR: ' + e.message); }
+            try { await testReorderInvalidIdNoOp(); } catch(e) { logTest('testReorderInvalidIdNoOp', false, 'ERROR: ' + e.message); }
             
             // Display results
             window.alert = _origAlert;
@@ -8202,6 +8245,657 @@ async function testEditAssignmentMovesTask() {
             logTest('Quick Tomorrow with overlap shows warning instead of moving',
                 warningShown && stillOnSource,
                 `Warning: ${warningShown}, Still on source: ${stillOnSource}`);
+        }
+
+        // ============================================
+        // DRAG & DROP TESTS
+        // ============================================
+
+        async function testReorderTasksDownward() {
+            // Drag task at index 0 to index 2 (downward)
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Set up 3 known tasks
+            const id1 = Date.now() + 0.301;
+            const id2 = Date.now() + 0.302;
+            const id3 = Date.now() + 0.303;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'DragA', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'DragB', category: 'habit', completed: false, notes: '' },
+                { id: id3, text: 'DragC', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag DragA (index 0) to DragC (index 2)
+            reorderTasksInDay(weekKey, todayKey, id1, id3);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // Expected: B, A, C (A inserted before C, after being removed from position 0)
+            // Actually with the fix: after removing A, tasks = [B, C]
+            // findIndex of C = 1, splice(1, 0, A) = [B, A, C]
+            const correct = order[0] === 'DragB' && order[1] === 'DragA' && order[2] === 'DragC';
+            
+            logTest('Reorder tasks downward (0→2)',
+                correct,
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testReorderTasksUpward() {
+            // Drag task at index 2 to index 0 (upward)
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.311;
+            const id2 = Date.now() + 0.312;
+            const id3 = Date.now() + 0.313;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'UpA', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'UpB', category: 'habit', completed: false, notes: '' },
+                { id: id3, text: 'UpC', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag UpC (index 2) to UpA (index 0)
+            reorderTasksInDay(weekKey, todayKey, id3, id1);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // After removing C: [A, B], findIndex of A = 0, splice(0, 0, C) = [C, A, B]
+            const correct = order[0] === 'UpC' && order[1] === 'UpA' && order[2] === 'UpB';
+            
+            logTest('Reorder tasks upward (2→0)',
+                correct,
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testReorderSamePositionNoChange() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.321;
+            const id2 = Date.now() + 0.322;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'Same1', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'Same2', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drop on self — should be no-op
+            reorderTasksInDay(weekKey, todayKey, id1, id1);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            logTest('Reorder same position is no-op',
+                order[0] === 'Same1' && order[1] === 'Same2',
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testDragBetweenDays() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.331;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'DragBetween-Test', category: 'cleaning',
+                completed: false, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const sourceData = loadData(weekKey);
+            const gone = !sourceData[todayKey].tasks.some(t => t.text === 'DragBetween-Test');
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'DragBetween-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'DragBetween-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Drag between days moves task',
+                gone && !!found,
+                `Gone from source: ${gone}, Found on target: ${!!found}`);
+        }
+
+        async function testDragBetweenDaysPreservesFields() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.341;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'DragFields-Test', category: 'skincare',
+                startTime: '10:00', duration: '45 min',
+                completed: false, notes: 'keep these notes'
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'DragFields-Test');
+            
+            const preserved = found && found.startTime === '10:00' && 
+                             found.duration === '45 min' && 
+                             found.category === 'skincare' &&
+                             found.notes === 'keep these notes';
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'DragFields-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Drag between days preserves all fields',
+                preserved,
+                found ? `startTime=${found.startTime}, duration=${found.duration}, notes=${found.notes}` : 'Not found');
+        }
+
+        async function testDragDropOnSelfNoOp() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const taskId = Date.now() + 0.351;
+            weekData[todayKey].tasks = [
+                { id: taskId, text: 'SelfDrop', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            const beforeCount = loadData(weekKey)[todayKey].tasks.length;
+            
+            // handleDrop checks if draggedTask.taskId === targetTaskId and returns early
+            // Simulate: reorderTasksInDay with same task should be no-op
+            reorderTasksInDay(weekKey, todayKey, taskId, taskId);
+            
+            const afterCount = loadData(weekKey)[todayKey].tasks.length;
+            
+            logTest('Drop on self is no-op (no duplication)',
+                beforeCount === afterCount,
+                `Before: ${beforeCount}, After: ${afterCount}`);
+        }
+
+        async function testDragHandleExists() {
+            // Render a task and check for drag handle in HTML
+            const task = { id: 1, text: 'Handle Test', category: 'habit', completed: false, notes: '' };
+            const html = renderTaskItem(task, 'wk', 'dt');
+            
+            const hasHandle = html.includes('drag-handle');
+            const hasGrip = html.includes('⠿');
+            
+            logTest('Drag handle element exists in task item',
+                hasHandle && hasGrip,
+                `Handle: ${hasHandle}, Grip icon: ${hasGrip}`);
+        }
+
+        async function testReorderThreeTasksMiddleToTop() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.361;
+            const id2 = Date.now() + 0.362;
+            const id3 = Date.now() + 0.363;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'MidA', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'MidB', category: 'habit', completed: false, notes: '' },
+                { id: id3, text: 'MidC', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag MidB (index 1) to MidA (index 0)
+            reorderTasksInDay(weekKey, todayKey, id2, id1);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // After removing B: [A, C], findIndex of A = 0, splice(0, 0, B) = [B, A, C]
+            const correct = order[0] === 'MidB' && order[1] === 'MidA' && order[2] === 'MidC';
+            
+            logTest('Reorder middle task to top',
+                correct,
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testReorderAdjacentSwapDown() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.371;
+            const id2 = Date.now() + 0.372;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'AdjA', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'AdjB', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag AdjA (0) to AdjB (1)
+            reorderTasksInDay(weekKey, todayKey, id1, id2);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // After removing A: [B], findIndex of B = 0, splice(0, 0, A) = [A, B]
+            // Hmm, that puts it back. Let me think...
+            // Actually: remove A at 0 → [B]. Find B at index 0. splice(0,0,A) → [A, B]. Same as before!
+            // This is expected: dragging first onto second means "insert before second" = same position
+            // The visual indicator is "border-top" on B, meaning "put above B" = position 0 = same
+            // So adjacent swap down is actually: [A, B] stays [A, B] - that's correct for "drop above target"
+            // To actually swap, you'd drop A AFTER B, which our UI doesn't support (we insert before target)
+            
+            logTest('Adjacent swap down: drag first to second (insert before = same position)',
+                order[0] === 'AdjA' && order[1] === 'AdjB',
+                `Order: ${order.join(', ')} (expected same — drop inserts before target)`);
+        }
+
+        async function testReorderAdjacentSwapUp() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.381;
+            const id2 = Date.now() + 0.382;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'SwapA', category: 'habit', completed: false, notes: '' },
+                { id: id2, text: 'SwapB', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag SwapB (1) to SwapA (0) = insert B before A
+            reorderTasksInDay(weekKey, todayKey, id2, id1);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // Remove B at 1 → [A]. Find A at 0. splice(0, 0, B) → [B, A]. Swapped!
+            logTest('Adjacent swap up: drag second to first',
+                order[0] === 'SwapB' && order[1] === 'SwapA',
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testReorderLastToFirstLongList() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const ids = [0.391, 0.392, 0.393, 0.394, 0.395].map(x => Date.now() + x);
+            weekData[todayKey].tasks = ids.map((id, i) => ({
+                id, text: `Long${i}`, category: 'habit', completed: false, notes: ''
+            }));
+            saveData(weekKey, weekData);
+            
+            // Drag Long4 (last, index 4) to Long0 (first, index 0)
+            reorderTasksInDay(weekKey, todayKey, ids[4], ids[0]);
+            
+            const reloaded = loadData(weekKey);
+            const order = reloaded[todayKey].tasks.map(t => t.text);
+            
+            // Remove Long4: [0,1,2,3]. Find Long0 at 0. splice(0,0,Long4) → [4,0,1,2,3]
+            const correct = order[0] === 'Long4' && order[1] === 'Long0' && order[4] === 'Long3';
+            
+            logTest('Reorder last to first in 5-task list',
+                correct,
+                `Order: ${order.join(', ')}`);
+        }
+
+        async function testReorderPreservesTaskFields() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.401;
+            const id2 = Date.now() + 0.402;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'FieldsTask', category: 'skincare', startTime: '09:00', duration: '45 min', completed: true, notes: 'my notes here' },
+                { id: id2, text: 'Other', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Drag FieldsTask (0) down then check fields preserved
+            // Use upward drag of Other to FieldsTask so FieldsTask moves
+            reorderTasksInDay(weekKey, todayKey, id2, id1);
+            
+            const reloaded = loadData(weekKey);
+            const task = reloaded[todayKey].tasks.find(t => t.text === 'FieldsTask');
+            
+            const preserved = task && task.category === 'skincare' && task.startTime === '09:00' &&
+                             task.duration === '45 min' && task.completed === true && task.notes === 'my notes here';
+            
+            logTest('Reorder preserves all task fields',
+                preserved,
+                task ? `cat=${task.category}, start=${task.startTime}, dur=${task.duration}, done=${task.completed}, notes=${task.notes}` : 'Not found');
+        }
+
+        async function testDragBetweenDaysCountChanges() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.411;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'CountChange-Test', category: 'habit', completed: false, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            const srcBefore = loadData(weekKey)[todayKey].tasks.length;
+            const tgtBefore = loadData(tmrWeekKey)[tomorrowKey].tasks.length;
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const srcAfter = loadData(weekKey)[todayKey].tasks.length;
+            const tgtAfter = loadData(tmrWeekKey)[tomorrowKey].tasks.length;
+            
+            // Clean up
+            const td = loadData(tmrWeekKey);
+            td[tomorrowKey].tasks = td[tomorrowKey].tasks.filter(t => t.text !== 'CountChange-Test');
+            saveData(tmrWeekKey, td);
+            
+            logTest('Drag between days: source count -1, target count +1',
+                srcAfter === srcBefore - 1 && tgtAfter === tgtBefore + 1,
+                `Source: ${srcBefore}→${srcAfter}, Target: ${tgtBefore}→${tgtAfter}`);
+        }
+
+        async function testDragBetweenDaysNotACopy() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.421;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'NoCopy-Test', category: 'cleaning', completed: false, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const srcData = loadData(weekKey);
+            const stillOnSource = srcData[todayKey].tasks.some(t => t.text === 'NoCopy-Test');
+            const tgtData = loadData(tmrWeekKey);
+            const onTarget = tgtData[tomorrowKey].tasks.filter(t => t.text === 'NoCopy-Test').length;
+            
+            // Clean up
+            tgtData[tomorrowKey].tasks = tgtData[tomorrowKey].tasks.filter(t => t.text !== 'NoCopy-Test');
+            saveData(tmrWeekKey, tgtData);
+            
+            logTest('Drag between days is a move not a copy',
+                !stillOnSource && onTarget === 1,
+                `On source: ${stillOnSource}, On target count: ${onTarget}`);
+        }
+
+        async function testDragCompletedBetweenDays() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.431;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'DragDone-Test', category: 'habit', completed: true, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const tgtData = loadData(tmrWeekKey);
+            const found = tgtData[tomorrowKey].tasks.find(t => t.text === 'DragDone-Test');
+            
+            // Clean up
+            tgtData[tomorrowKey].tasks = tgtData[tomorrowKey].tasks.filter(t => t.text !== 'DragDone-Test');
+            saveData(tmrWeekKey, tgtData);
+            
+            logTest('Drag completed task between days stays completed',
+                !!found && found.completed === true,
+                found ? `completed=${found.completed}` : 'Not found');
+        }
+
+        async function testDragScheduledBetweenDaysKeepsTime() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            if (weekKey !== tmrWeekKey) generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.441;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'DragSched-Test', category: 'skincare',
+                startTime: '14:30', duration: '1 hour',
+                completed: false, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const tgtData = loadData(tmrWeekKey);
+            const found = tgtData[tomorrowKey].tasks.find(t => t.text === 'DragSched-Test');
+            
+            // Clean up
+            tgtData[tomorrowKey].tasks = tgtData[tomorrowKey].tasks.filter(t => t.text !== 'DragSched-Test');
+            saveData(tmrWeekKey, tgtData);
+            
+            logTest('Drag scheduled task between days keeps startTime and duration',
+                !!found && found.startTime === '14:30' && found.duration === '1 hour',
+                found ? `startTime=${found.startTime}, duration=${found.duration}` : 'Not found');
+        }
+
+        async function testDragHandleHiddenDesktopCSS() {
+            // Check that .drag-handle has display:none by default (desktop)
+            const handle = document.querySelector('.drag-handle');
+            if (handle) {
+                const style = window.getComputedStyle(handle);
+                const hidden = style.display === 'none';
+                logTest('Drag handle hidden on desktop via CSS',
+                    hidden,
+                    `display: ${style.display}`);
+            } else {
+                // If no handle rendered yet, check the stylesheet
+                const sheets = document.styleSheets;
+                let foundRule = false;
+                for (const sheet of sheets) {
+                    try {
+                        for (const rule of sheet.cssRules) {
+                            if (rule.selectorText === '.drag-handle' && rule.style.display === 'none') {
+                                foundRule = true;
+                            }
+                        }
+                    } catch(e) {}
+                }
+                logTest('Drag handle hidden on desktop via CSS',
+                    foundRule,
+                    foundRule ? 'CSS rule found' : 'No matching CSS rule');
+            }
+        }
+
+        async function testReorderSingleTaskNoOp() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.451;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'OnlyTask', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Try reorder with a non-existent target
+            reorderTasksInDay(weekKey, todayKey, id1, 99999);
+            
+            const reloaded = loadData(weekKey);
+            const intact = reloaded[todayKey].tasks.length === 1 && reloaded[todayKey].tasks[0].text === 'OnlyTask';
+            
+            logTest('Reorder single task with invalid target is no-op',
+                intact,
+                `Tasks: ${reloaded[todayKey].tasks.length}, Text: ${reloaded[todayKey].tasks[0]?.text}`);
+        }
+
+        async function testDragToEmptyDay() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            const tmrData = generateWeekData(tmrWeekStart);
+            
+            // Clear tomorrow's tasks
+            tmrData[tomorrowKey].tasks = [];
+            saveData(tmrWeekKey, tmrData);
+            
+            const taskId = Date.now() + 0.461;
+            weekData[todayKey].tasks.push({
+                id: taskId, text: 'ToEmpty-Test', category: 'cleaning', completed: false, notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            moveTaskBetweenDays(weekKey, todayKey, taskId, tmrWeekKey, tomorrowKey);
+            
+            const tgtData = loadData(tmrWeekKey);
+            const found = tgtData[tomorrowKey].tasks.find(t => t.text === 'ToEmpty-Test');
+            
+            // Clean up
+            tgtData[tomorrowKey].tasks = tgtData[tomorrowKey].tasks.filter(t => t.text !== 'ToEmpty-Test');
+            saveData(tmrWeekKey, tgtData);
+            
+            logTest('Drag to empty day adds task successfully',
+                !!found,
+                found ? 'Found on empty day' : 'Not found');
+        }
+
+        async function testMoveTaskBetweenDaysInvalidId() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            
+            const beforeCount = weekData[todayKey].tasks.length;
+            
+            // Try to move a non-existent task ID
+            moveTaskBetweenDays(weekKey, todayKey, 99999, tmrWeekKey, tomorrowKey);
+            
+            const afterCount = loadData(weekKey)[todayKey].tasks.length;
+            
+            logTest('moveTaskBetweenDays with invalid ID is no-op',
+                beforeCount === afterCount,
+                `Before: ${beforeCount}, After: ${afterCount}`);
+        }
+
+        async function testReorderInvalidIdNoOp() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const id1 = Date.now() + 0.471;
+            weekData[todayKey].tasks = [
+                { id: id1, text: 'ValidTask', category: 'habit', completed: false, notes: '' }
+            ];
+            saveData(weekKey, weekData);
+            
+            // Try reorder with invalid dragged ID
+            reorderTasksInDay(weekKey, todayKey, 99999, id1);
+            
+            const reloaded = loadData(weekKey);
+            const intact = reloaded[todayKey].tasks.length === 1 && reloaded[todayKey].tasks[0].text === 'ValidTask';
+            
+            logTest('reorderTasksInDay with invalid dragged ID is no-op',
+                intact,
+                `Intact: ${intact}`);
         }
 
         // ============================================
