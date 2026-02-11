@@ -1506,7 +1506,7 @@
             }
         }
 
-        function confirmAssignCaptureItem() {
+                function confirmAssignCaptureItem() {
             if (!currentAssignItemId) return;
             
             const dateInput = document.getElementById('assign-date').value;
@@ -1532,7 +1532,7 @@
                 if (frequency === 'daily') {
                     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
                 } else if (frequency === 'monthly') {
-                    const selectedDate = new Date(dateInput + 'T12:00:00');
+                    const selectedDate = parseLocalDate(dateInput);
                     days = [`day-${selectedDate.getDate()}`];
                 } else {
                     document.querySelectorAll('#assign-days-selector input[type="checkbox"]:checked').forEach(cb => {
@@ -1578,12 +1578,24 @@
                 alert(`✅ Added "${item.text}" as recurring task starting ${dateInput}!`);
                 
             } else {
-                // One-time assignment
-                const selectedDate = new Date(dateInput + 'T12:00:00');
+                // One-time assignment - FIX HERE
+                const selectedDate = parseLocalDate(dateInput);
                 const weekStart = getWeekStart(selectedDate);
                 const weekKey = getWeekKey(weekStart);
-                const weekData = generateWeekData(weekStart);
+                
+                // Load or generate week data
+                let weekData = loadData(weekKey);
+                if (!weekData) {
+                    weekData = generateWeekData(weekStart);
+                }
+                
                 const dateKey = formatDate(selectedDate);
+                
+                // Make sure the day exists in weekData
+                if (!weekData[dateKey]) {
+                    alert(`Error: Could not find ${dateKey} in week data`);
+                    return;
+                }
                 
                 // Add task to that day
                 weekData[dateKey].tasks.push({
@@ -1612,9 +1624,11 @@
                 renderCaptureList();
                 
                 alert(`✅ Added "${item.text}" to ${dateKey}!`);
+                
+                // Refresh the current view if we're looking at that week
+                renderCurrentView();
             }
         }
-
 
         function deleteCaptureItem(itemId) {
             if (!confirm('Delete this capture item?')) return;
