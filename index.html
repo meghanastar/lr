@@ -1135,14 +1135,30 @@
         }
 
 
-        function toggleTask(weekKey, dateKey, taskId, event) {
+                function toggleTask(weekKey, dateKey, taskId, event) {
             if (event) event.stopPropagation();
             const weekData = loadData(weekKey);
             const task = weekData[dateKey].tasks.find(t => t.id === taskId);
             task.completed = !task.completed;
             saveData(weekKey, weekData);
+            
+            // If this task is from capture list, update capture item status
+            if (task.fromCapture && task.completed) {
+                const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+                const captureItem = captureList.find(item => 
+                    item.text === task.text && item.status === 'assigned'
+                );
+                
+                if (captureItem) {
+                    captureItem.status = 'completed';
+                    captureItem.completedAt = new Date().toISOString();
+                    localStorage.setItem('capture-list', JSON.stringify(captureList));
+                }
+            }
+            
             renderCurrentView();
         }
+
 
         function toggleTaskDetails(weekKey, dateKey, taskId) {
             // Don't toggle if we just finished dragging
@@ -1393,7 +1409,7 @@
         }
 
 
-                function renderCaptureList() {
+                   function renderCaptureList() {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const container = document.getElementById('capture-list-content');
             
@@ -1452,8 +1468,8 @@
                 } else if (item.status === 'assigned') {
                     actionButtons = `
                         <button class="task-action-btn-small btn-edit" onclick="editCaptureAssignment(${item.id})">✏️ Edit Assignment</button>
-                        <button class="task-action-btn-small" style="background: var(--amethyst);" onclick="unassignCaptureItem(${item.id})">↩️ Unassign</button>
-                        <button class="task-action-btn-small" style="background: var(--emerald);" onclick="completeCaptureItem(${item.id})">✓ Mark Complete</button>
+                        <button class="task-action-btn-small" style="background: var(--amethyst); color: white;" onclick="unassignCaptureItem(${item.id})">↩️ Unassign</button>
+                        <button class="task-action-btn-small" style="background: var(--emerald); color: white;" onclick="completeCaptureItem(${item.id})">✓ Mark Complete</button>
                         <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
                     `;
                 } else if (item.status === 'completed') {
@@ -1486,6 +1502,118 @@
             
             container.innerHTML = html;
         }
+
+        function editCaptureAssignment(itemId) {
+            // Reuse the assign modal but pre-fill with current values
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
+            
+            if (!item || !item.assignedTo) return;
+            
+            currentAssignItemId = itemId;
+            
+            // Pre-fill form with current values
+            if (item.assignedTo.recurring) {
+                document.getElementById('assign-date').value = item.assignedTo.startDate;
+                document.getElementById('assign-time').value = item.assignedTo.time || '';
+                document.getElementById('make-recurring').checked = true;
+                document.getElementById('recurring-options').style.display = 'block';
+                document.getElementById('assign-frequency').value = item.assignedTo.frequency;
+                
+                // Check the appropriate days
+                if (item.assignedTo.days) {
+                    item.assignedTo.days.forEach(day => {
+                        const checkbox = document.getElementById(`assign-day-${day}`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                }
+                toggleAssignDaysSelector();
+            } else {
+                document.getElementById('assign-date').value = item.assignedTo.dateKey;
+                document.getElementById('assign-time').value = item.assignedTo.time || '';
+                document.getElementById('make-recurring').checked = false;
+                document.getElementById('recurring-options').style.display = 'none';
+            }
+            
+            document.getElementById('assign-capture-modal').classList.add('active');
+        }
+
+        function unassignCaptureItem(itemId) {
+            if (!confirm('Unassign this item? It will be removed from your schedule.')) return;
+            
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
+            
+            if (!item) return;
+            
+            // Remove from schedule
+            if (item.assignedTo) {
+                if (item.assignedTo.recurring) {
+                    // Remove from recurring tasks
+                    const recurringTasks = loadData('recurring-tasks') || [];
+                    const filtered = recurringTasks.filter(rt => 
+                        !(rt.text === item.text && rt.startDate === item.assignedTo.startDate)
+                    );
+                    saveData('recurring-tasks', filtered);
+                } else {
+                    // Remove from specific day
+                    const weekKey = item.assignedTo.weekKey;
+                    const dateKey = item.assignedTo.dateKey;
+                    const weekData = loadData(weekKey);
+                    
+                    if (weekData && weekData[dateKey]) {
+                        weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => 
+                            !(t.fromCapture && t.text === item.text)
+                        );
+                        saveData(weekKey, weekData);
+                    }
+                }
+            }
+            
+            // Update capture item
+            item.status = 'unassigned';
+            item.assignedTo = null;
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            renderCaptureList();
+            renderCurrentView();
+            alert('✅ Item unassigned!');
+        }
+
+        function completeCaptureItem(itemId) {
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
+            
+            if (!item) return;
+            
+            // Mark as completed
+            item.status = 'completed';
+            item.completedAt = new Date().toISOString();
+            
+            // Mark task as complete in schedule (if not recurring)
+            if (item.assignedTo && !item.assignedTo.recurring) {
+                const weekKey = item.assignedTo.weekKey;
+                const dateKey = item.assignedTo.dateKey;
+                const weekData = loadData(weekKey);
+                
+                if (weekData && weekData[dateKey]) {
+                    const task = weekData[dateKey].tasks.find(t => 
+                        t.fromCapture && t.text === item.text
+                    );
+                    if (task) {
+                        task.completed = true;
+                        saveData(weekKey, weekData);
+                    }
+                }
+            }
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            renderCaptureList();
+            renderCurrentView();
+            alert('✅ Item marked complete!');
+        }
+
 
         function filterCaptureList(filter) {
             currentCaptureFilter = filter;
@@ -1648,16 +1776,18 @@
                     return;
                 }
                 
-                // Add task to that day
+                                // Add task to that day
                 weekData[dateKey].tasks.push({
                     id: Date.now(),
                     text: item.text,
-                    category: item.category,
+                    category: 'capture',
                     time: timeInput || undefined,
                     completed: false,
                     notes: item.notes || '',
-                    fromCapture: true
+                    fromCapture: true,
+                    captureItemId: item.id
                 });
+
                 
                 saveData(weekKey, weekData);
                 
