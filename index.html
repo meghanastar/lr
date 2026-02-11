@@ -4614,6 +4614,7 @@ function editCaptureAssignment(itemId) {
         }
 
         function scheduleSyncPush() {
+            if (_testMode) return;
             const config = loadSyncConfig();
             if (!config || !config.token || !config.gistId) return;
             
