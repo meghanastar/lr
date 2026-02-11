@@ -894,13 +894,6 @@
                 <input type="text" class="form-input" id="assign-time" placeholder="e.g., 10:00 AM, Morning, Evening">
             </div>
             
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="make-recurring" onchange="toggleRecurringOptions()">
-                    <span style="font-weight: 500;">🔄 Make this recurring</span>
-                </label>
-            </div>
-            
             <div id="recurring-options" style="display: none; margin-top: 15px; padding: 15px; background: var(--surface-hover); border-radius: 12px;">
                 <div class="form-group">
                     <label class="form-label">Repeat Frequency</label>
@@ -1519,7 +1512,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                             <div style="flex: 1;">
                                 <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px; ${item.status === 'completed' ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${item.text}</div>
-                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                                               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                     <span class="task-tag tag-${item.category}">${item.category}</span>
                                     ${item.time ? `<span class="task-time">⏱️ ${item.time}</span>` : ''}
                                     ${item.priority ? `<span style="font-size: 0.85rem; color: var(--text-lighter);">Priority: ${item.priority}</span>` : ''}
@@ -1541,7 +1534,6 @@
         }
 
         function editCaptureAssignment(itemId) {
-            // Reuse the assign modal but pre-fill with current values
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const item = captureList.find(i => i.id === itemId);
             
@@ -1549,28 +1541,9 @@
             
             currentAssignItemId = itemId;
             
-            // Pre-fill form with current values
-            if (item.assignedTo.recurring) {
-                document.getElementById('assign-date').value = item.assignedTo.startDate;
-                document.getElementById('assign-time').value = item.assignedTo.time || '';
-                document.getElementById('make-recurring').checked = true;
-                document.getElementById('recurring-options').style.display = 'block';
-                document.getElementById('assign-frequency').value = item.assignedTo.frequency;
-                
-                // Check the appropriate days
-                if (item.assignedTo.days) {
-                    item.assignedTo.days.forEach(day => {
-                        const checkbox = document.getElementById(`assign-day-${day}`);
-                        if (checkbox) checkbox.checked = true;
-                    });
-                }
-                toggleAssignDaysSelector();
-            } else {
-                document.getElementById('assign-date').value = item.assignedTo.dateKey;
-                document.getElementById('assign-time').value = item.assignedTo.time || '';
-                document.getElementById('make-recurring').checked = false;
-                document.getElementById('recurring-options').style.display = 'none';
-            }
+            // Pre-fill form with current values (one-time assignment only)
+            document.getElementById('assign-date').value = item.assignedTo.dateKey;
+            document.getElementById('assign-time').value = item.assignedTo.time || '';
             
             document.getElementById('assign-capture-modal').classList.add('active');
         }
@@ -1581,30 +1554,18 @@
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const item = captureList.find(i => i.id === itemId);
             
-            if (!item) return;
+            if (!item || !item.assignedTo) return;
             
-            // Remove from schedule
-            if (item.assignedTo) {
-                if (item.assignedTo.recurring) {
-                    // Remove from recurring tasks
-                    const recurringTasks = loadData('recurring-tasks') || [];
-                    const filtered = recurringTasks.filter(rt => 
-                        !(rt.text === item.text && rt.startDate === item.assignedTo.startDate)
-                    );
-                    saveData('recurring-tasks', filtered);
-                } else {
-                    // Remove from specific day
-                    const weekKey = item.assignedTo.weekKey;
-                    const dateKey = item.assignedTo.dateKey;
-                    const weekData = loadData(weekKey);
-                    
-                    if (weekData && weekData[dateKey]) {
-                        weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => 
-                            !(t.fromCapture && t.text === item.text)
-                        );
-                        saveData(weekKey, weekData);
-                    }
-                }
+            // Remove from schedule (one-time assignment only)
+            const weekKey = item.assignedTo.weekKey;
+            const dateKey = item.assignedTo.dateKey;
+            const weekData = loadData(weekKey);
+            
+            if (weekData && weekData[dateKey]) {
+                weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => 
+                    t.captureItemId !== item.id
+                );
+                saveData(weekKey, weekData);
             }
             
             // Update capture item
@@ -1678,19 +1639,45 @@
             
             if (!item) return;
             
-            // Update item
-            item.text = document.getElementById('edit-capture-item-text').value.trim();
-            item.category = document.getElementById('edit-capture-item-category').value;
-            item.time = document.getElementById('edit-capture-item-time').value.trim() || undefined;
-            item.priority = document.getElementById('edit-capture-item-priority').value;
-            item.notes = document.getElementById('edit-capture-item-notes').value.trim();
+            // Get new values
+            const newText = document.getElementById('edit-capture-item-text').value.trim();
+            const newCategory = document.getElementById('edit-capture-item-category').value;
+            const newTime = document.getElementById('edit-capture-item-time').value.trim() || undefined;
+            const newPriority = document.getElementById('edit-capture-item-priority').value;
+            const newNotes = document.getElementById('edit-capture-item-notes').value.trim();
+            
+            // If item is assigned, update it in the schedule too
+            if (item.assignedTo && item.assignedTo.weekKey && item.assignedTo.dateKey) {
+                const weekData = loadData(item.assignedTo.weekKey);
+                if (weekData && weekData[item.assignedTo.dateKey]) {
+                    const task = weekData[item.assignedTo.dateKey].tasks.find(t => 
+                        t.captureItemId === item.id
+                    );
+                    if (task) {
+                        task.text = newText;
+                        task.category = newCategory;
+                        task.time = newTime;
+                        task.notes = newNotes;
+                        saveData(item.assignedTo.weekKey, weekData);
+                    }
+                }
+            }
+            
+            // Update capture item
+            item.text = newText;
+            item.category = newCategory;
+            item.time = newTime;
+            item.priority = newPriority;
+            item.notes = newNotes;
             
             localStorage.setItem('capture-list', JSON.stringify(captureList));
             
             closeModal('edit-capture-item-modal');
             renderCaptureList();
-            alert('✅ Item updated!');
+            renderCurrentView();
+            alert('✅ Item updated everywhere!');
         }
+
 
         function uncompleteCaptureItem(itemId) {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
@@ -1807,7 +1794,6 @@
             
             const dateInput = document.getElementById('assign-date').value;
             const timeInput = document.getElementById('assign-time').value.trim();
-            const isRecurring = document.getElementById('make-recurring').checked;
             
             if (!dateInput) {
                 alert('Please select a date!');
@@ -1820,152 +1806,115 @@
             
             if (!item) return;
             
-            if (isRecurring) {
-                // Add to recurring tasks
-                const frequency = document.getElementById('assign-frequency').value;
-                let days = [];
-                
-                if (frequency === 'daily') {
-                    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-                } else if (frequency === 'monthly') {
-                    const selectedDate = parseLocalDate(dateInput);
-                    days = [`day-${selectedDate.getDate()}`];
-                } else {
-                    document.querySelectorAll('#assign-days-selector input[type="checkbox"]:checked').forEach(cb => {
-                        days.push(cb.value);
-                    });
-                    
-                    if (days.length === 0) {
-                        alert('Please select at least one day!');
-                        return;
-                    }
-                }
-                
-                // Add to recurring tasks
-                const recurringTasks = loadData('recurring-tasks') || [];
-                const newRecurringTask = {
-                    id: Date.now(),
-                    text: item.text,
-                    category: item.category,
-                    time: timeInput || item.time || undefined,
-                    routine: undefined,
-                    frequency: frequency,
-                    days: days,
-                    startDate: dateInput,
-                    fromCapture: true
-                };
-                
-                recurringTasks.push(newRecurringTask);
-                saveData('recurring-tasks', recurringTasks);
-                
-                // Force regenerate current and future weeks to include this recurring task
-                const startDate = parseLocalDate(dateInput);
-                
-                // Regenerate weeks from start date forward
-                for (let i = 0; i < 8; i++) { // Next 8 weeks
-                    const weekDate = new Date(startDate);
-                    weekDate.setDate(startDate.getDate() + (i * 7));
-                    const weekStart = getWeekStart(weekDate);
-                    const weekKey = getWeekKey(weekStart);
-                    
-                    // Delete existing week data so it regenerates with new recurring task
-                    localStorage.removeItem(weekKey);
-                    generateWeekData(weekStart);
-                }
-                
-                // Update capture item
-                item.status = 'assigned';
-                item.assignedTo = {
-                    recurring: true,
-                    frequency: frequency,
-                    days: days,
-                    startDate: dateInput,
-                    time: timeInput || null
-                };
-                
-                localStorage.setItem('capture-list', JSON.stringify(captureList));
-                
-                closeModal('assign-capture-modal');
-                renderCaptureList();
-                
-                alert(`✅ Added "${item.text}" as recurring task starting ${dateInput}!`);
-                
-            } else {
-                // One-time assignment
-                const selectedDate = parseLocalDate(dateInput);
-                const weekStart = getWeekStart(selectedDate);
-                const weekKey = getWeekKey(weekStart);
-                
-                // Load or generate week data
-                let weekData = loadData(weekKey);
-                if (!weekData) {
-                    weekData = generateWeekData(weekStart);
-                }
-                
-                const dateKey = formatDate(selectedDate);
-                
-                // Make sure the day exists in weekData
-                if (!weekData[dateKey]) {
-                    alert(`Error: Could not find ${dateKey} in week data`);
-                    return;
-                }
-                
-                // Add task to that day
-                weekData[dateKey].tasks.push({
-                    id: Date.now(),
-                    text: item.text,
-                    category: item.category,
-                    time: timeInput || item.time || undefined,
-                    completed: false,
-                    notes: item.notes || '',
-                    fromCapture: true,
-                    captureItemId: item.id
-                });
-                
-                saveData(weekKey, weekData);
-                
-                // Update capture item status
-                item.status = 'assigned';
-                item.assignedTo = {
-                    dateKey: dateKey,
-                    weekKey: weekKey,
-                    time: timeInput || null
-                };
-                
-                localStorage.setItem('capture-list', JSON.stringify(captureList));
-                
-                closeModal('assign-capture-modal');
-                renderCaptureList();
-                
-                alert(`✅ Added "${item.text}" to ${dateKey}!`);
-                
-                // Refresh the current view if we're looking at that week
-                renderCurrentView();
+            // One-time assignment only (no recurring)
+            const selectedDate = parseLocalDate(dateInput);
+            const weekStart = getWeekStart(selectedDate);
+            const weekKey = getWeekKey(weekStart);
+            
+            // Load or generate week data
+            let weekData = loadData(weekKey);
+            if (!weekData) {
+                weekData = generateWeekData(weekStart);
             }
+            
+            const dateKey = formatDate(selectedDate);
+            
+            // Make sure the day exists in weekData
+            if (!weekData[dateKey]) {
+                alert(`Error: Could not find ${dateKey} in week data`);
+                return;
+            }
+            
+            // Add task to that day
+            const newTask = {
+                id: Date.now(),
+                text: item.text,
+                category: item.category,
+                time: timeInput || item.time || undefined,
+                completed: false,
+                notes: item.notes || '',
+                fromCapture: true,
+                captureItemId: item.id
+            };
+            
+            weekData[dateKey].tasks.push(newTask);
+            saveData(weekKey, weekData);
+            
+            // Update capture item status
+            item.status = 'assigned';
+            item.assignedTo = {
+                dateKey: dateKey,
+                weekKey: weekKey,
+                time: timeInput || null,
+                taskId: newTask.id // Store the task ID for syncing
+            };
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            closeModal('assign-capture-modal');
+            renderCaptureList();
+            
+            alert(`✅ Added "${item.text}" to ${dateKey}!`);
+            
+            // Refresh the current view
+            renderCurrentView();
         }
 
-
-        function deleteCaptureItem(itemId, alsoDeleteFromSchedule = false) {
+          function deleteCaptureItem(itemId) {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const item = captureList.find(i => i.id === itemId);
             
             if (!item) return;
             
             const confirmMsg = item.status === 'completed' ? 
-                'Delete this item permanently?' : 
+                'Delete this completed item from capture list?' : 
+                item.status === 'assigned' ?
+                'Delete this item from capture list? (It will also be removed from your schedule if not completed and the date hasn\'t passed)' :
                 'Delete this item from capture list?';
             
             if (!confirm(confirmMsg)) return;
             
-            // Only delete from schedule if explicitly requested (we're setting this to false)
-            // This means delete ONLY removes from capture list, not from schedule
+            // DELETE LOGIC based on scenarios
+            if (item.status === 'assigned' && item.assignedTo) {
+                const assignedDate = parseLocalDate(item.assignedTo.dateKey);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                assignedDate.setHours(0, 0, 0, 0);
+                
+                const weekData = loadData(item.assignedTo.weekKey);
+                
+                if (weekData && weekData[item.assignedTo.dateKey]) {
+                    const task = weekData[item.assignedTo.dateKey].tasks.find(t => 
+                        t.captureItemId === item.id
+                    );
+                    
+                    // Scenario 2: Future date, not complete → DELETE from schedule
+                    // Scenario 3: Future date, completed → KEEP in schedule
+                    // Scenario 4: Past date, not complete → KEEP in schedule (historical record)
+                    // Scenario 5: Past date, completed → KEEP in schedule (for metrics)
+                    
+                    const shouldDeleteFromSchedule = 
+                        assignedDate >= today && // Future or today
+                        task && !task.completed; // Not completed
+                    
+                    if (shouldDeleteFromSchedule) {
+                        // Remove from schedule
+                        weekData[item.assignedTo.dateKey].tasks = 
+                            weekData[item.assignedTo.dateKey].tasks.filter(t => 
+                                t.captureItemId !== item.id
+                            );
+                        saveData(item.assignedTo.weekKey, weekData);
+                    }
+                }
+            }
             
-            // Remove from capture list
+            // Always remove from capture list
             const filtered = captureList.filter(i => i.id !== itemId);
             localStorage.setItem('capture-list', JSON.stringify(filtered));
             
             renderCaptureList();
-            alert('✅ Item deleted from capture list!');
+            renderCurrentView();
+            alert('✅ Item deleted!');
         }
 
 
@@ -2614,7 +2563,7 @@
                 let currentDayDetailKey = null;
         let currentDayDetailWeekKey = null;
 
-     function openDayDetail(dateKey) {
+         function openDayDetail(dateKey) {
             const date = parseLocalDate(dateKey);
             const weekStart = getWeekStart(date);
             const weekKey = getWeekKey(weekStart);
@@ -2660,6 +2609,7 @@
                                     ${task.time ? `<span class="task-time" style="margin-left: 8px;">⏱️ ${task.time}</span>` : ''}
                                 </div>
                             </div>
+                            <button class="task-action-btn-small btn-edit" onclick="openEditTaskModalFromMonth('${weekKey}', '${dateKey}', ${task.id}, event)" style="padding: 6px 12px;">✏️</button>
                         </div>
                     `;
                 });
@@ -2675,6 +2625,7 @@
             
             document.getElementById('day-detail-modal').classList.add('active');
         }
+
 
           function toggleTaskInModal(weekKey, dateKey, taskId) {
             const weekData = loadData(weekKey);
@@ -2707,41 +2658,56 @@
             // Refresh month view to update completion %
             renderMonthView();
         }
+        function openEditTaskModalFromMonth(weekKey, dateKey, taskId, event) {
+            event.stopPropagation();
+            
+            // Close day detail modal
+            closeModal('day-detail-modal');
+            
+            // Open edit task modal
+            openEditTaskModal(weekKey, dateKey, taskId, event);
+        }
 
 
-        function goToDay() {
+
+         function goToDay() {
             if (!currentDayDetailKey) return;
             
             const date = parseLocalDate(currentDayDetailKey);
             const today = new Date();
-
+            today.setHours(0, 0, 0, 0);
+            date.setHours(0, 0, 0, 0);
+            
+            closeModal('day-detail-modal');
             
             // Check if it's today
-            if (formatDate(date) === formatDate(today)) {
-                closeModal('day-detail-modal');
+            if (date.getTime() === today.getTime()) {
                 switchView('today');
-            } else {
-                // Go to week view and show that week
-                const weekStart = getWeekStart(date);
-                const todayWeekStart = getWeekStart(today);
-                
-                if (formatDate(weekStart) === formatDate(todayWeekStart)) {
-                    currentWeekView = 'current';
-                } else if (date > today) {
-                    currentWeekView = 'next';
-                } else {
-                    // It's a past date - just close modal for now
-                    alert('This is a past date. View in Last Week tab or we can build a date picker!');
-                    return;
-                }
-                
-                closeModal('day-detail-modal');
+                return;
+            }
+            
+            // Check if it's within current or next week
+            const todayWeekStart = getWeekStart(today);
+            const nextWeekStart = new Date(todayWeekStart);
+            nextWeekStart.setDate(todayWeekStart.getDate() + 7);
+            const dateWeekStart = getWeekStart(date);
+            
+            if (dateWeekStart.getTime() === todayWeekStart.getTime()) {
+                currentWeekView = 'current';
                 document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-                document.querySelectorAll('.nav-item')[1].classList.add('active'); // Week tab
+                document.querySelectorAll('.nav-item')[1].classList.add('active');
                 switchView('week');
+            } else if (dateWeekStart.getTime() === nextWeekStart.getTime()) {
+                currentWeekView = 'next';
+                document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+                document.querySelectorAll('.nav-item')[1].classList.add('active');
+                switchView('week');
+            } else {
+                // It's further in the future or past
+                alert(`This date (${currentDayDetailKey}) is not in the current or next week view. You can view it in the Month view or we can build a date picker to navigate to any week!`);
             }
         }
-        let draggedTask = null;
+
 
         function handleDragStart(event, weekKey, dateKey, taskId) {
             event.stopPropagation(); // Prevent expanding task
