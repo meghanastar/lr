@@ -834,9 +834,6 @@
             </div>
         </div>
             
-            <div id="capture-list-content"></div>
-        </div>
-            
     <div id="day-detail-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1445,6 +1442,9 @@
                         data-week-key="${weekKey}"
                         data-date-key="${dateKey}"
                         data-task-id="${task.id}"
+                        ontouchstart="handleTouchStart(event)"
+                         ontouchmove="handleTouchMove(event)"
+                         ontouchend="handleTouchEnd(event)"
                          ondragstart="handleDragStart(event, '${weekKey}', '${dateKey}', ${task.id})"
                          ondragover="handleDragOver(event)"
                          ondrop="handleDrop(event, '${weekKey}', '${dateKey}', ${task.id})"
@@ -2321,23 +2321,20 @@
         }
 
 
-    function switchView(view) {
-            currentView = view;
-            document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
-            document.getElementById(`${view}-view`).classList.remove('hidden');
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            
-        if (view === 'routines') renderRoutinesView();
-            else if (view === 'metrics') renderMetricsView();
-            else if (view === 'month') renderMonthView();
-            else if (view === 'capture') renderCaptureList();
-            else renderCurrentView();
-            
-            else if (view === 'metrics') renderMetricsView();
-            else if (view === 'month') renderMonthView();
-            else renderCurrentView();
-        }
+   function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
+    document.getElementById(`${view}-view`).classList.remove('hidden');
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    
+    if (view === 'routines') renderRoutinesView();
+    else if (view === 'metrics') renderMetricsView();
+    else if (view === 'month') renderMonthView();
+    else if (view === 'capture') renderCaptureList();
+    else renderCurrentView();
+}
+
 
 
 
