@@ -2035,8 +2035,8 @@
             saveData(targetWeekKey, targetWeekData);
             
             closeModal('move-task-modal');
-            alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
-            renderCurrentView();
+            if (!_testMode) alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
+            if (!_testMode) renderCurrentView();
         }
 
         function moveTaskSkip() {
@@ -2046,12 +2046,12 @@
             const weekData = loadData(weekKey);
             const task = weekData[dateKey].tasks.find(t => t.id === taskId);
             
-            if (!confirm(`Skip "${task.text}"? This will remove it without completing it.`)) return;
+            if (!_testMode && !confirm(`Skip "${task.text}"? This will remove it without completing it.`)) return;
             
             weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => t.id !== taskId);
             saveData(weekKey, weekData);
             closeModal('move-task-modal');
-            renderCurrentView();
+            if (!_testMode) renderCurrentView();
         }
 
             function deleteTask(weekKey, dateKey, taskId, event) {
@@ -4065,9 +4065,14 @@ function editCaptureAssignment(itemId) {
             renderCurrentView();
         }
 
+        let _testMode = false;
+
         async function runAllTests() {
             testResults = [];
             testItemIds = [];
+            _testMode = true;
+            const _origAlert = window.alert;
+            window.alert = function() {}; // suppress alerts during tests
             
             document.getElementById('test-results').style.display = 'block';
             document.getElementById('test-summary').innerHTML = '⏳ Running tests...';
@@ -4216,6 +4221,8 @@ function editCaptureAssignment(itemId) {
             try { await testQuickTomorrowWithOverlapShowsWarning(); } catch(e) { logTest('testQuickTomorrowWithOverlapShowsWarning', false, 'ERROR: ' + e.message); }
             
             // Display results
+            window.alert = _origAlert;
+            _testMode = false;
             displayTestResults();
         }
 
