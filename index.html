@@ -830,28 +830,58 @@
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                 </select>
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Time Estimate (optional)</label>
+                <input type="text" id="capture-item-time" placeholder="e.g., 30 min, 1 hour" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
                 
+
                 <textarea id="capture-item-notes" placeholder="Notes (optional)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; min-height: 80px;"></textarea>
                 
                 <button class="btn btn-primary" onclick="saveCaptureItem()" style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">Add to Capture List</button>
             </div>
         </div>
         
+            <div id="edit-capture-item-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Item</h2>
+                <button class="modal-close" onclick="closeModal('edit-capture-item-modal')">×</button>
+            </div>
+            
+            <input type="text" id="edit-capture-item-text" placeholder="What did you discover?" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+            
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+            <select id="edit-capture-item-category" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                <option value="deep-clean">Deep Clean</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="projects">Projects</option>
+                <option value="shopping">Shopping</option>
+                <option value="organizing">Organizing</option>
+                <option value="other">Other</option>
+            </select>
+            
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Time Estimate (optional)</label>
+            <input type="text" id="edit-capture-item-time" placeholder="e.g., 30 min, 1 hour" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+            
+            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Priority (optional)</label>
+            <select id="edit-capture-item-priority" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                <option value="">None</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+            </select>
+            
+            <textarea id="edit-capture-item-notes" placeholder="Notes (optional)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; min-height: 80px;"></textarea>
+            
+            <button class="btn btn-primary" onclick="saveEditedCaptureItem()" style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">Save Changes</button>
+        </div>
+    </div>
+
+        
     <div id="assign-capture-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Assign to Day</h2>
                 <button class="modal-close" onclick="closeModal('assign-capture-modal')">×</button>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">📅 Quick Select</label>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button class="filter-btn" onclick="setAssignDate('today')">Today</button>
-                    <button class="filter-btn" onclick="setAssignDate('tomorrow')">Tomorrow</button>
-                    <button class="filter-btn" onclick="setAssignDate('this-weekend')">This Weekend</button>
-                    <button class="filter-btn" onclick="setAssignDate('next-week')">Next Week</button>
-                </div>
             </div>
             
             <div class="form-group">
@@ -1369,9 +1399,10 @@
 
                 function saveCaptureItem() {
             const text = document.getElementById('capture-item-text').value.trim();
-            const captureCategory = document.getElementById('capture-item-category').value;
+            const category = document.getElementById('capture-item-category').value;
             const priority = document.getElementById('capture-item-priority').value;
             const notes = document.getElementById('capture-item-notes').value.trim();
+            const timeEstimate = document.getElementById('capture-item-time').value.trim();
             
             if (!text) {
                 alert('Please enter what you discovered!');
@@ -1381,18 +1412,19 @@
             // Load existing capture list
             let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             
-            // Create new item - ALWAYS use 'capture' as the task category
+            // Create new item - use the original category, not 'capture'
             const newItem = {
                 id: Date.now(),
                 text: text,
-                category: 'capture', // This is the task category
-                captureCategory: captureCategory, // This is for organizing within capture list
+                category: category, // Use the actual category they selected
                 priority: priority,
                 notes: notes,
-                status: 'unassigned', // unassigned, assigned, completed
+                time: timeEstimate || undefined,
+                status: 'unassigned',
                 assignedTo: null,
                 createdAt: new Date().toISOString(),
-                completedAt: null
+                completedAt: null,
+                fromCapture: true // Mark that it came from capture list
             };
             
             captureList.push(newItem);
@@ -1403,13 +1435,14 @@
             document.getElementById('capture-item-category').value = 'deep-clean';
             document.getElementById('capture-item-priority').value = '';
             document.getElementById('capture-item-notes').value = '';
+            document.getElementById('capture-item-time').value = '';
             
             closeModal('add-capture-item-modal');
             renderCaptureList();
         }
 
 
-                   function renderCaptureList() {
+          function renderCaptureList() {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const container = document.getElementById('capture-list-content');
             
@@ -1462,19 +1495,22 @@
                 let actionButtons = '';
                 if (item.status === 'unassigned') {
                     actionButtons = `
-                        <button class="task-action-btn-small btn-edit" onclick="assignCaptureItem(${item.id})">📅 Assign to Day</button>
+                        <button class="task-action-btn-small btn-edit" onclick="editCaptureItem(${item.id})">✏️ Edit Item</button>
+                        <button class="task-action-btn-small" style="background: var(--primary); color: white;" onclick="assignCaptureItem(${item.id})">📅 Assign to Day</button>
                         <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
                     `;
                 } else if (item.status === 'assigned') {
                     actionButtons = `
-                        <button class="task-action-btn-small btn-edit" onclick="editCaptureAssignment(${item.id})">✏️ Edit Assignment</button>
+                        <button class="task-action-btn-small btn-edit" onclick="editCaptureItem(${item.id})">✏️ Edit Item</button>
+                        <button class="task-action-btn-small btn-edit" onclick="editCaptureAssignment(${item.id})">📅 Edit Assignment</button>
                         <button class="task-action-btn-small" style="background: var(--amethyst); color: white;" onclick="unassignCaptureItem(${item.id})">↩️ Unassign</button>
                         <button class="task-action-btn-small" style="background: var(--emerald); color: white;" onclick="completeCaptureItem(${item.id})">✓ Mark Complete</button>
-                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
+                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id}, false)">🗑️ Delete</button>
                     `;
                 } else if (item.status === 'completed') {
                     actionButtons = `
-                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete Permanently</button>
+                        <button class="task-action-btn-small" style="background: var(--primary); color: white;" onclick="uncompleteCaptureItem(${item.id})">↩️ Mark Incomplete</button>
+                        <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id}, false)">🗑️ Delete Permanently</button>
                     `;
                 }
                 
@@ -1484,7 +1520,8 @@
                             <div style="flex: 1;">
                                 <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px; ${item.status === 'completed' ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${item.text}</div>
                                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                                    <span class="task-tag tag-${item.captureCategory}">${item.captureCategory}</span>
+                                    <span class="task-tag tag-${item.category}">${item.category}</span>
+                                    ${item.time ? `<span class="task-time">⏱️ ${item.time}</span>` : ''}
                                     ${item.priority ? `<span style="font-size: 0.85rem; color: var(--text-lighter);">Priority: ${item.priority}</span>` : ''}
                                     <span class="capture-status ${statusClass}">${item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
                                 </div>
@@ -1613,6 +1650,86 @@
             renderCurrentView();
             alert('✅ Item marked complete!');
         }
+        let currentEditCaptureItemId = null;
+
+        function editCaptureItem(itemId) {
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
+            
+            if (!item) return;
+            
+            currentEditCaptureItemId = itemId;
+            
+            // Pre-fill form
+            document.getElementById('edit-capture-item-text').value = item.text;
+            document.getElementById('edit-capture-item-category').value = item.category;
+            document.getElementById('edit-capture-item-time').value = item.time || '';
+            document.getElementById('edit-capture-item-priority').value = item.priority || '';
+            document.getElementById('edit-capture-item-notes').value = item.notes || '';
+            
+            document.getElementById('edit-capture-item-modal').classList.add('active');
+        }
+
+        function saveEditedCaptureItem() {
+            if (!currentEditCaptureItemId) return;
+            
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === currentEditCaptureItemId);
+            
+            if (!item) return;
+            
+            // Update item
+            item.text = document.getElementById('edit-capture-item-text').value.trim();
+            item.category = document.getElementById('edit-capture-item-category').value;
+            item.time = document.getElementById('edit-capture-item-time').value.trim() || undefined;
+            item.priority = document.getElementById('edit-capture-item-priority').value;
+            item.notes = document.getElementById('edit-capture-item-notes').value.trim();
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            closeModal('edit-capture-item-modal');
+            renderCaptureList();
+            alert('✅ Item updated!');
+        }
+
+        function uncompleteCaptureItem(itemId) {
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
+            
+            if (!item) return;
+            
+            // Mark as assigned (if it has assignment) or unassigned
+            if (item.assignedTo) {
+                item.status = 'assigned';
+                
+                // Uncheck the task in schedule
+                if (!item.assignedTo.recurring) {
+                    const weekKey = item.assignedTo.weekKey;
+                    const dateKey = item.assignedTo.dateKey;
+                    const weekData = loadData(weekKey);
+                    
+                    if (weekData && weekData[dateKey]) {
+                        const task = weekData[dateKey].tasks.find(t => 
+                            t.fromCapture && t.text === item.text
+                        );
+                        if (task) {
+                            task.completed = false;
+                            saveData(weekKey, weekData);
+                        }
+                    }
+                }
+            } else {
+                item.status = 'unassigned';
+            }
+            
+            item.completedAt = null;
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            renderCaptureList();
+            renderCurrentView();
+            alert('✅ Item marked incomplete!');
+        }
 
 
         function filterCaptureList(filter) {
@@ -1685,7 +1802,7 @@
             }
         }
 
-                function confirmAssignCaptureItem() {
+        function confirmAssignCaptureItem() {
             if (!currentAssignItemId) return;
             
             const dateInput = document.getElementById('assign-date').value;
@@ -1726,7 +1843,7 @@
                 
                 // Add to recurring tasks
                 const recurringTasks = loadData('recurring-tasks') || [];
-                recurringTasks.push({
+                const newRecurringTask = {
                     id: Date.now(),
                     text: item.text,
                     category: item.category,
@@ -1734,10 +1851,27 @@
                     routine: undefined,
                     frequency: frequency,
                     days: days,
-                    startDate: dateInput
-                });
+                    startDate: dateInput,
+                    fromCapture: true
+                };
                 
+                recurringTasks.push(newRecurringTask);
                 saveData('recurring-tasks', recurringTasks);
+                
+                // Force regenerate current and future weeks to include this recurring task
+                const startDate = parseLocalDate(dateInput);
+                
+                // Regenerate weeks from start date forward
+                for (let i = 0; i < 8; i++) { // Next 8 weeks
+                    const weekDate = new Date(startDate);
+                    weekDate.setDate(startDate.getDate() + (i * 7));
+                    const weekStart = getWeekStart(weekDate);
+                    const weekKey = getWeekKey(weekStart);
+                    
+                    // Delete existing week data so it regenerates with new recurring task
+                    localStorage.removeItem(weekKey);
+                    generateWeekData(weekStart);
+                }
                 
                 // Update capture item
                 item.status = 'assigned';
@@ -1757,7 +1891,7 @@
                 alert(`✅ Added "${item.text}" as recurring task starting ${dateInput}!`);
                 
             } else {
-                // One-time assignment - FIX HERE
+                // One-time assignment
                 const selectedDate = parseLocalDate(dateInput);
                 const weekStart = getWeekStart(selectedDate);
                 const weekKey = getWeekKey(weekStart);
@@ -1776,18 +1910,17 @@
                     return;
                 }
                 
-                                // Add task to that day
+                // Add task to that day
                 weekData[dateKey].tasks.push({
                     id: Date.now(),
                     text: item.text,
-                    category: 'capture',
-                    time: timeInput || undefined,
+                    category: item.category,
+                    time: timeInput || item.time || undefined,
                     completed: false,
                     notes: item.notes || '',
                     fromCapture: true,
                     captureItemId: item.id
                 });
-
                 
                 saveData(weekKey, weekData);
                 
@@ -1811,15 +1944,30 @@
             }
         }
 
-        function deleteCaptureItem(itemId) {
-            if (!confirm('Delete this capture item?')) return;
+
+        function deleteCaptureItem(itemId, alsoDeleteFromSchedule = false) {
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === itemId);
             
-            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
-            captureList = captureList.filter(item => item.id !== itemId);
-            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            if (!item) return;
+            
+            const confirmMsg = item.status === 'completed' ? 
+                'Delete this item permanently?' : 
+                'Delete this item from capture list?';
+            
+            if (!confirm(confirmMsg)) return;
+            
+            // Only delete from schedule if explicitly requested (we're setting this to false)
+            // This means delete ONLY removes from capture list, not from schedule
+            
+            // Remove from capture list
+            const filtered = captureList.filter(i => i.id !== itemId);
+            localStorage.setItem('capture-list', JSON.stringify(filtered));
             
             renderCaptureList();
+            alert('✅ Item deleted from capture list!');
         }
+
 
         function addCustomTask(event) {
             event.preventDefault();
@@ -2528,11 +2676,30 @@
             document.getElementById('day-detail-modal').classList.add('active');
         }
 
-        function toggleTaskInModal(weekKey, dateKey, taskId) {
+          function toggleTaskInModal(weekKey, dateKey, taskId) {
             const weekData = loadData(weekKey);
             const task = weekData[dateKey].tasks.find(t => t.id === taskId);
             task.completed = !task.completed;
             saveData(weekKey, weekData);
+            
+            // If this task is from capture list, update capture item status
+            if (task.fromCapture) {
+                const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+                const captureItem = captureList.find(item => 
+                    item.text === task.text && (item.status === 'assigned' || item.status === 'completed')
+                );
+                
+                if (captureItem) {
+                    if (task.completed) {
+                        captureItem.status = 'completed';
+                        captureItem.completedAt = new Date().toISOString();
+                    } else {
+                        captureItem.status = 'assigned';
+                        captureItem.completedAt = null;
+                    }
+                    localStorage.setItem('capture-list', JSON.stringify(captureList));
+                }
+            }
             
             // Re-render modal content
             openDayDetail(dateKey);
@@ -2540,6 +2707,7 @@
             // Refresh month view to update completion %
             renderMonthView();
         }
+
 
         function goToDay() {
             if (!currentDayDetailKey) return;
