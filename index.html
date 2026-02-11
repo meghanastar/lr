@@ -171,6 +171,7 @@
         .tag-laundry { background: var(--jade-light); color: var(--jade); }
         .tag-special { background: var(--gold-light); color: var(--gold); }
         .tag-deepclean { background: var(--emerald-light); color: var(--emerald); }
+        .tag-capture { background: var(--topaz-light); color: var(--topaz); }
         .task-time { font-size: 0.75rem; color: var(--text-lighter); }
         
         /* Task Details Dropdown */
@@ -791,7 +792,9 @@
                     <button class="filter-btn active" onclick="filterCaptureList('all')">All</button>
                     <button class="filter-btn" onclick="filterCaptureList('unassigned')">Unassigned</button>
                     <button class="filter-btn" onclick="filterCaptureList('assigned')">Assigned</button>
+                    <button class="filter-btn" onclick="filterCaptureList('completed')">Completed</button>
                 </div>
+
             </div>
             
             <div id="capture-list-content">
@@ -1348,9 +1351,9 @@
             document.getElementById('add-capture-item-modal').classList.add('active');
         }
 
-        function saveCaptureItem() {
+                function saveCaptureItem() {
             const text = document.getElementById('capture-item-text').value.trim();
-            const category = document.getElementById('capture-item-category').value;
+            const captureCategory = document.getElementById('capture-item-category').value;
             const priority = document.getElementById('capture-item-priority').value;
             const notes = document.getElementById('capture-item-notes').value.trim();
             
@@ -1362,16 +1365,18 @@
             // Load existing capture list
             let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             
-            // Create new item
+            // Create new item - ALWAYS use 'capture' as the task category
             const newItem = {
                 id: Date.now(),
                 text: text,
-                category: category,
+                category: 'capture', // This is the task category
+                captureCategory: captureCategory, // This is for organizing within capture list
                 priority: priority,
                 notes: notes,
                 status: 'unassigned', // unassigned, assigned, completed
-                assignedTo: null, // { dateKey, weekKey, time }
-                createdAt: new Date().toISOString()
+                assignedTo: null,
+                createdAt: new Date().toISOString(),
+                completedAt: null
             };
             
             captureList.push(newItem);
@@ -1386,6 +1391,7 @@
             closeModal('add-capture-item-modal');
             renderCaptureList();
         }
+
 
         function renderCaptureList() {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
