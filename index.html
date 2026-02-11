@@ -1550,25 +1550,91 @@
             container.innerHTML = html;
         }
 
-function editCaptureAssignment(itemId) {
-            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
-            const item = captureList.find(i => i.id === itemId);
+function confirmAssignCaptureItem() {
+            if (!currentAssignItemId) return;
             
-            if (!item || !item.assignedTo) return;
+            const dateInput = document.getElementById('assign-date').value;
+            const timeInput = document.getElementById('assign-time').value.trim();
             
-            currentAssignItemId = itemId;
+            if (!dateInput) {
+                alert('Please select a date!');
+                return;
+            }
             
-            // Store the old assignment so we can remove it if date changes
-            window.currentEditingOldAssignment = {
-                dateKey: item.assignedTo.dateKey,
-                weekKey: item.assignedTo.weekKey
+            // Load capture list
+            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === currentAssignItemId);
+            
+            if (!item) return;
+            
+            // Check if we're editing an existing assignment (item already has assignedTo)
+            const isEditing = item.status === 'assigned' && item.assignedTo;
+            
+            if (isEditing) {
+                // Remove task from old location FIRST
+                const oldWeekData = loadData(item.assignedTo.weekKey);
+                if (oldWeekData && oldWeekData[item.assignedTo.dateKey]) {
+                    oldWeekData[item.assignedTo.dateKey].tasks = 
+                        oldWeekData[item.assignedTo.dateKey].tasks.filter(t => 
+                            t.captureItemId !== item.id
+                        );
+                    saveData(item.assignedTo.weekKey, oldWeekData);
+                }
+            }
+            
+            // Now assign to new location (whether new or edited)
+            const selectedDate = parseLocalDate(dateInput);
+            const weekStart = getWeekStart(selectedDate);
+            const weekKey = getWeekKey(weekStart);
+            
+            // Load or generate week data
+            let weekData = loadData(weekKey);
+            if (!weekData) {
+                weekData = generateWeekData(weekStart);
+            }
+            
+            const dateKey = formatDate(selectedDate);
+            
+            // Make sure the day exists in weekData
+            if (!weekData[dateKey]) {
+                alert(`Error: Could not find ${dateKey} in week data`);
+                return;
+            }
+            
+            // Add task to new location
+            const newTask = {
+                id: Date.now(),
+                text: item.text,
+                category: item.category,
+                time: timeInput || item.time || undefined,
+                completed: false,
+                notes: item.notes || '',
+                fromCapture: true,
+                captureItemId: item.id
             };
             
-            // Pre-fill form with current values
-            document.getElementById('assign-date').value = item.assignedTo.dateKey;
-            document.getElementById('assign-time').value = item.assignedTo.time || '';
+            weekData[dateKey].tasks.push(newTask);
+            saveData(weekKey, weekData);
             
-            document.getElementById('assign-capture-modal').classList.add('active');
+            // Update capture item status
+            item.status = 'assigned';
+            item.assignedTo = {
+                dateKey: dateKey,
+                weekKey: weekKey,
+                time: timeInput || null,
+                taskId: newTask.id
+            };
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            closeModal('assign-capture-modal');
+            renderCaptureList();
+            
+            const actionText = isEditing ? 'moved to' : 'added to';
+            alert(`✅ "${item.text}" ${actionText} ${dateKey}!`);
+            
+            // Refresh the current view
+            renderCurrentView();
         }
 
         function unassignCaptureItem(itemId) {
