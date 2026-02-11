@@ -1273,10 +1273,11 @@
         function getWeekNumber(date) {
             const anchor = parseLocalDate(TEMPLATE_ANCHOR);
             const d = new Date(date);
-            d.setHours(0,0,0,0);
-            anchor.setHours(0,0,0,0);
-            const diffMs = d.getTime() - anchor.getTime();
-            const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+            // Use UTC noon to avoid DST issues with millisecond math
+            const anchorUTC = Date.UTC(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), 12);
+            const dateUTC = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+            const diffDays = Math.round((dateUTC - anchorUTC) / (24 * 60 * 60 * 1000));
+            const diffWeeks = Math.floor(diffDays / 7);
             // Modulo 4 to get week 1-4 (handle negative weeks before anchor)
             return ((diffWeeks % 4) + 4) % 4 + 1; // Returns 1, 2, 3, or 4
         }
@@ -4685,7 +4686,7 @@ async function testEditAssignmentMovesTask() {
             
             const totalCount = Object.keys(ROUTINES_LIBRARY).length;
             
-            logTest('Expanded routines library (39 routines)',
+            logTest('Expanded routines library',
                 allFound && totalCount >= 35,
                 allFound ? `${totalCount} routines loaded` : `Missing: ${missing.join(', ')}`);
         }
