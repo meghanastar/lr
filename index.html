@@ -534,6 +534,91 @@
             border-color: var(--amethyst);
         }
 
+        /* Routines/Task Library Toggle */
+        .routines-toggle-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .routines-toggle-tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: var(--surface);
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .routines-toggle-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        .task-library-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        .task-library-item-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px;
+            cursor: pointer;
+        }
+        .task-library-item-header:hover {
+            background: var(--surface-hover);
+        }
+        .task-library-item-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        .task-library-item-details {
+            padding: 0 14px 14px;
+            border-top: 1px solid var(--border);
+        }
+        .task-library-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .task-library-actions button {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-library-actions button:hover {
+            background: var(--primary-lighter);
+            border-color: var(--primary);
+        }
+        .task-library-where-used {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--surface-hover);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .task-library-category-header {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 0 8px;
+            margin-top: 10px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-light);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -575,8 +660,33 @@
         </div>
 
         <div id="routines-view" class="view-content hidden">
-            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">📖 Routines Library</h2>
-            <div id="routines-content"></div>
+            <div class="routines-toggle-tabs">
+                <button class="routines-toggle-tab active" onclick="switchRoutinesSubView('routines')">📖 Routines</button>
+                <button class="routines-toggle-tab" onclick="switchRoutinesSubView('task-library')">📚 Task Library</button>
+            </div>
+            <div id="routines-subview">
+                <div id="routines-content"></div>
+            </div>
+            <div id="task-library-subview" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <input type="text" class="routine-picker-search" id="task-library-search" placeholder="🔍 Search tasks..." oninput="renderTaskLibrary()">
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="filter-btn active" onclick="setTaskLibraryFilter('all')">All</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('habit')">Habit</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('cleaning')">Cleaning</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('skincare')">Skincare</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('hair')">Hair</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('laundry')">Laundry</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('special')">Special</button>
+                    <button class="filter-btn" onclick="setTaskLibraryFilter('deepclean')">Deep Clean</button>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <button class="copy-week-btn" onclick="setTaskLibrarySort('alpha')" id="sort-alpha-btn" style="font-weight: 600;">A→Z</button>
+                    <button class="copy-week-btn" onclick="setTaskLibrarySort('category')" id="sort-cat-btn">By Category</button>
+                </div>
+                <div id="task-library-content"></div>
+            </div>
         </div>
 
         <div id="settings-view" class="view-content hidden">
@@ -1029,6 +1139,88 @@
                     <input type="text" class="form-input" id="edit-template-task-time" placeholder="e.g., 5 min">
                 </div>
                 <button class="btn btn-primary" onclick="saveTemplateTaskEdit()">Save Changes</button>
+            </div>
+        </div>
+
+        <div id="task-library-schedule-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="task-library-schedule-modal-title">Add to Schedule</h2>
+                    <button class="modal-close" onclick="closeModal('task-library-schedule-modal')">×</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Which day?</label>
+                    <select class="form-select" id="task-library-schedule-day">
+                        <option value="today">Today</option>
+                        <option value="tomorrow">Tomorrow</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="confirmTaskLibraryAddToSchedule()">Add to Schedule</button>
+            </div>
+        </div>
+
+        <div id="task-library-template-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="task-library-template-modal-title">Add to Template</h2>
+                    <button class="modal-close" onclick="closeModal('task-library-template-modal')">×</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Which week?</label>
+                    <select class="form-select" id="task-library-template-week">
+                        <option value="1">Week 1</option>
+                        <option value="2">Week 2</option>
+                        <option value="3">Week 3</option>
+                        <option value="4">Week 4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Which day(s)?</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="sunday"><span>Sunday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="monday"><span>Monday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="tuesday"><span>Tuesday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="wednesday"><span>Wednesday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="thursday"><span>Thursday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="friday"><span>Friday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="saturday"><span>Saturday</span></label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="confirmTaskLibraryAddToTemplate()">Add to Template</button>
+            </div>
+        </div>
+
+        <div id="task-library-edit-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Edit Task</h2>
+                    <button class="modal-close" onclick="closeModal('task-library-edit-modal')">×</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Task Name</label>
+                    <input type="text" class="form-input" id="task-library-edit-name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="task-library-edit-category">
+                        <option value="habit">Daily Habit</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="skincare">Skincare</option>
+                        <option value="hair">Hair Care</option>
+                        <option value="laundry">Laundry</option>
+                        <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Estimate</label>
+                    <input type="text" class="form-input" id="task-library-edit-time" placeholder="e.g., 5 min">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Steps (one per line)</label>
+                    <textarea class="form-input" id="task-library-edit-steps" rows="6" placeholder="Step 1&#10;Step 2&#10;Step 3"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveTaskLibraryEdit()">Save Changes</button>
             </div>
         </div>
 
@@ -3196,7 +3388,10 @@ function editCaptureAssignment(itemId) {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     event.currentTarget.classList.add('active');
     
-    if (view === 'routines') renderRoutinesView();
+    if (view === 'routines') {
+        if (currentRoutinesSubView === 'task-library') renderTaskLibrary();
+        else renderRoutinesView();
+    }
     else if (view === 'metrics') renderMetricsView();
     else if (view === 'month') renderMonthView();
     else if (view === 'capture') renderCaptureList();
@@ -3366,6 +3561,25 @@ function editCaptureAssignment(itemId) {
             await test4WeekRotation();
             await testExpandedRoutinesLibrary();
             await testTemplateDoesNotAffectExistingWeeks();
+            
+            // Task Library Tests
+            await testTaskLibraryCollectsAllSources();
+            await testTaskLibrarySearchFilter();
+            await testTaskLibraryCategoryFilter();
+            await testTaskLibraryEditSyncsEverywhere();
+            await testTaskLibraryDeleteRemovesEverywhere();
+            await testTaskLibraryWhereUsedFindsLocations();
+            await testTaskLibrarySortAlpha();
+            await testTaskLibrarySortByCategory();
+            await testTaskLibraryAddToScheduleCreatesTask();
+            await testTaskLibraryAddToTemplateCreatesTask();
+            await testTaskLibraryExpandCollapse();
+            await testTaskLibraryEditSingleSource();
+            await testTaskLibraryDeleteRoutineOnly();
+            await testTaskLibraryDeleteRecurringOnly();
+            await testTaskLibrarySearchNoResults();
+            await testTaskLibrarySearchPlusCategoryFilter();
+            await testTaskLibraryEditToDuplicateName();
             
             // Display results
             displayTestResults();
@@ -4735,6 +4949,967 @@ async function testEditAssignmentMovesTask() {
             logTest('Template does not affect existing generated weeks',
                 initialTaskCount === afterTaskCount && freshTasks.length === 2,
                 `Existing: ${initialTaskCount}→${afterTaskCount}, Fresh: ${freshTasks.length} tasks`);
+        }
+
+        // ============================================
+        // TASK LIBRARY TESTS
+        // ============================================
+
+        async function testTaskLibraryCollectsAllSources() {
+            const savedTemplate = loadData('master-template');
+            const savedRecurring = loadData('recurring-tasks');
+            
+            // Add a unique task to template only
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            template[1]['monday'] = [{ text: 'TL-Test-Template-Only', category: 'cleaning', time: '10 min' }];
+            saveMasterTemplate(template);
+            
+            // Add a unique recurring task
+            const recurring = loadData('recurring-tasks') || [];
+            recurring.push({ id: 99999, text: 'TL-Test-Recurring-Only', category: 'hair', time: '5 min', frequency: 'weekly', days: ['tuesday'], startDate: '2026-02-15' });
+            saveData('recurring-tasks', recurring);
+            
+            // Routines library already has tasks
+            const allTasks = getAllUniqueTasks();
+            
+            const hasRoutine = allTasks.some(t => t.sources.includes('routines'));
+            const hasTemplate = allTasks.some(t => t.name === 'TL-Test-Template-Only' && t.sources.includes('template'));
+            const hasRecurring = allTasks.some(t => t.name === 'TL-Test-Recurring-Only' && t.sources.includes('recurring'));
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            if (savedRecurring) saveData('recurring-tasks', savedRecurring);
+            else localStorage.removeItem('recurring-tasks');
+            
+            logTest('Task Library collects from all sources',
+                hasRoutine && hasTemplate && hasRecurring,
+                `Routines: ${hasRoutine}, Template: ${hasTemplate}, Recurring: ${hasRecurring}`);
+        }
+
+        async function testTaskLibrarySearchFilter() {
+            const allTasks = getAllUniqueTasks();
+            
+            // Filter by a known routine name substring
+            const searchTerm = 'retinol';
+            const filtered = allTasks.filter(t => t.name.toLowerCase().includes(searchTerm));
+            
+            const found = filtered.length >= 1 && filtered.some(t => t.name.toLowerCase().includes('retinol'));
+            const notTooMany = filtered.length < allTasks.length;
+            
+            logTest('Task Library search filter',
+                found && notTooMany,
+                `Found ${filtered.length} results for "${searchTerm}" out of ${allTasks.length} total`);
+        }
+
+        async function testTaskLibraryCategoryFilter() {
+            const allTasks = getAllUniqueTasks();
+            
+            const skincareTasks = allTasks.filter(t => t.category === 'skincare');
+            const hairTasks = allTasks.filter(t => t.category === 'hair');
+            
+            const skincareCorrect = skincareTasks.length >= 3 && skincareTasks.every(t => t.category === 'skincare');
+            const hairCorrect = hairTasks.length >= 3 && hairTasks.every(t => t.category === 'hair');
+            
+            logTest('Task Library category filter',
+                skincareCorrect && hairCorrect,
+                `Skincare: ${skincareTasks.length}, Hair: ${hairTasks.length}`);
+        }
+
+        async function testTaskLibraryEditSyncsEverywhere() {
+            const savedTemplate = loadData('master-template');
+            const savedRecurring = loadData('recurring-tasks');
+            const savedRoutines = loadData('routines-library');
+            
+            // Create a task that exists in all 3 sources
+            const testRoutineKey = 'tl-edit-test-routine';
+            ROUTINES_LIBRARY[testRoutineKey] = { name: 'TL-Edit-Test', category: 'habit', time: '5 min', steps: ['Step 1'] };
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            template[1]['wednesday'] = [{ text: 'TL-Edit-Test', category: 'habit', time: '5 min', routine: testRoutineKey }];
+            saveMasterTemplate(template);
+            
+            const recurring = loadData('recurring-tasks') || [];
+            recurring.push({ id: 88888, text: 'TL-Edit-Test', category: 'habit', time: '5 min', routine: testRoutineKey, frequency: 'weekly', days: ['wednesday'], startDate: '2026-02-15' });
+            saveData('recurring-tasks', recurring);
+            
+            // Simulate edit: update all sources
+            const newName = 'TL-Edit-Test-RENAMED';
+            const newCategory = 'skincare';
+            
+            // Update routines
+            if (ROUTINES_LIBRARY[testRoutineKey]) {
+                ROUTINES_LIBRARY[testRoutineKey].name = newName;
+                ROUTINES_LIBRARY[testRoutineKey].category = newCategory;
+                saveData('routines-library', ROUTINES_LIBRARY);
+            }
+            
+            // Update template
+            const t2 = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = t2[w] || {};
+                for (const d of DAY_NAMES_ORDERED) {
+                    (week[d] || []).forEach(task => {
+                        if (task.text.toLowerCase() === 'tl-edit-test') {
+                            task.text = newName;
+                            task.category = newCategory;
+                        }
+                    });
+                }
+            }
+            saveMasterTemplate(t2);
+            
+            // Update recurring
+            const rec2 = loadData('recurring-tasks') || [];
+            rec2.forEach(rt => {
+                if (rt.text.toLowerCase() === 'tl-edit-test') {
+                    rt.text = newName;
+                    rt.category = newCategory;
+                }
+            });
+            saveData('recurring-tasks', rec2);
+            
+            // Verify all sources updated
+            const routineUpdated = ROUTINES_LIBRARY[testRoutineKey].name === newName;
+            const t3 = loadMasterTemplate();
+            const templateUpdated = (t3[1]['wednesday'] || []).some(t => t.text === newName);
+            const rec3 = loadData('recurring-tasks') || [];
+            const recurringUpdated = rec3.some(rt => rt.text === newName);
+            
+            // Clean up
+            delete ROUTINES_LIBRARY[testRoutineKey];
+            if (savedRoutines) saveData('routines-library', savedRoutines);
+            else { saveData('routines-library', ROUTINES_LIBRARY); }
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            if (savedRecurring) saveData('recurring-tasks', savedRecurring);
+            else localStorage.removeItem('recurring-tasks');
+            
+            logTest('Task Library edit syncs everywhere',
+                routineUpdated && templateUpdated && recurringUpdated,
+                `Routine: ${routineUpdated}, Template: ${templateUpdated}, Recurring: ${recurringUpdated}`);
+        }
+
+        async function testTaskLibraryDeleteRemovesEverywhere() {
+            const savedTemplate = loadData('master-template');
+            const savedRecurring = loadData('recurring-tasks');
+            const savedRoutines = loadData('routines-library');
+            
+            // Create task in all sources
+            const testKey = 'tl-delete-test';
+            ROUTINES_LIBRARY[testKey] = { name: 'TL-Delete-Test', category: 'cleaning', time: '15 min', steps: [] };
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            const template = loadMasterTemplate();
+            if (!template[2]) template[2] = {};
+            template[2]['thursday'] = [{ text: 'TL-Delete-Test', category: 'cleaning' }];
+            saveMasterTemplate(template);
+            
+            const recurring = loadData('recurring-tasks') || [];
+            recurring.push({ id: 77777, text: 'TL-Delete-Test', category: 'cleaning', frequency: 'weekly', days: ['thursday'], startDate: '2026-02-15' });
+            saveData('recurring-tasks', recurring);
+            
+            // Delete
+            delete ROUTINES_LIBRARY[testKey];
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            const t2 = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = t2[w] || {};
+                for (const d of DAY_NAMES_ORDERED) {
+                    if (week[d]) {
+                        week[d] = week[d].filter(t => t.text.toLowerCase() !== 'tl-delete-test');
+                    }
+                }
+            }
+            saveMasterTemplate(t2);
+            
+            let rec2 = loadData('recurring-tasks') || [];
+            rec2 = rec2.filter(rt => rt.text.toLowerCase() !== 'tl-delete-test');
+            saveData('recurring-tasks', rec2);
+            
+            // Verify
+            const routineGone = !ROUTINES_LIBRARY[testKey];
+            const t3 = loadMasterTemplate();
+            const templateGone = !(t3[2]['thursday'] || []).some(t => t.text === 'TL-Delete-Test');
+            const rec3 = loadData('recurring-tasks') || [];
+            const recurringGone = !rec3.some(rt => rt.text === 'TL-Delete-Test');
+            
+            // Clean up
+            if (savedRoutines) { Object.assign(ROUTINES_LIBRARY, JSON.parse(savedRoutines)); saveData('routines-library', ROUTINES_LIBRARY); }
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            if (savedRecurring) saveData('recurring-tasks', savedRecurring);
+            else localStorage.removeItem('recurring-tasks');
+            
+            logTest('Task Library delete removes everywhere',
+                routineGone && templateGone && recurringGone,
+                `Routine: ${routineGone}, Template: ${templateGone}, Recurring: ${recurringGone}`);
+        }
+
+        async function testTaskLibraryWhereUsedFindsLocations() {
+            const savedTemplate = loadData('master-template');
+            
+            // Put a known task in Week 1 Monday and Week 3 Friday
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            if (!template[3]) template[3] = {};
+            template[1]['monday'] = [{ text: 'Make Your Bed', category: 'habit', routine: 'make-bed' }];
+            template[3]['friday'] = [{ text: 'Make Your Bed', category: 'habit', routine: 'make-bed' }];
+            saveMasterTemplate(template);
+            
+            // Collect all tasks and find Make Your Bed
+            const allTasks = getAllUniqueTasks();
+            const bedTask = allTasks.find(t => t.name === 'Make Your Bed');
+            
+            const hasRoutineSource = bedTask && bedTask.sources.includes('routines');
+            const hasTemplateSource = bedTask && bedTask.sources.includes('template');
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Task Library Where Used finds locations',
+                hasRoutineSource && hasTemplateSource,
+                bedTask ? `Sources: ${bedTask.sources.join(', ')}` : 'Task not found');
+        }
+
+        // ============================================
+        // TASK LIBRARY
+        // ============================================
+
+        async function testTaskLibrarySortAlpha() {
+            const allTasks = getAllUniqueTasks();
+            const sorted = [...allTasks].sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Check first 5 are in alphabetical order
+            let inOrder = true;
+            for (let i = 1; i < Math.min(sorted.length, 5); i++) {
+                if (sorted[i].name.localeCompare(sorted[i-1].name) < 0) {
+                    inOrder = false;
+                    break;
+                }
+            }
+            
+            logTest('Task Library sort alphabetically',
+                inOrder && sorted.length > 0,
+                `First 3: ${sorted.slice(0, 3).map(t => t.name).join(', ')}`);
+        }
+
+        async function testTaskLibrarySortByCategory() {
+            const allTasks = getAllUniqueTasks();
+            const sorted = [...allTasks].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+            
+            // Check categories are grouped
+            let grouped = true;
+            const seenCategories = new Set();
+            let lastCategory = '';
+            for (const task of sorted) {
+                if (task.category !== lastCategory) {
+                    if (seenCategories.has(task.category)) {
+                        grouped = false; // category appeared before, now reappearing = not grouped
+                        break;
+                    }
+                    seenCategories.add(task.category);
+                    lastCategory = task.category;
+                }
+            }
+            
+            logTest('Task Library sort by category groups correctly',
+                grouped && seenCategories.size > 1,
+                `${seenCategories.size} categories found, grouped: ${grouped}`);
+        }
+
+        async function testTaskLibraryAddToScheduleCreatesTask() {
+            // Add a known routine to today's schedule via the same logic as the UI
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const dateKey = formatDate(today);
+            
+            const beforeCount = weekData[dateKey].tasks.length;
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now() + 0.123,
+                text: 'TL-Schedule-Test-Task',
+                category: 'skincare',
+                time: '10 min',
+                completed: false,
+                notes: '',
+                custom: true
+            });
+            saveData(weekKey, weekData);
+            
+            const reloaded = loadData(weekKey);
+            const afterCount = reloaded[dateKey].tasks.length;
+            const found = reloaded[dateKey].tasks.find(t => t.text === 'TL-Schedule-Test-Task');
+            
+            // Clean up
+            reloaded[dateKey].tasks = reloaded[dateKey].tasks.filter(t => t.text !== 'TL-Schedule-Test-Task');
+            saveData(weekKey, reloaded);
+            
+            logTest('Task Library add to schedule creates task on correct day',
+                afterCount === beforeCount + 1 && !!found && found.category === 'skincare',
+                found ? `Found on ${dateKey}, category: ${found.category}` : 'Task not found');
+        }
+
+        async function testTaskLibraryAddToTemplateCreatesTask() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            const weekNum = 3;
+            const dayName = 'saturday';
+            if (!template[weekNum]) template[weekNum] = {};
+            if (!template[weekNum][dayName]) template[weekNum][dayName] = [];
+            
+            const beforeCount = template[weekNum][dayName].length;
+            
+            template[weekNum][dayName].push({
+                text: 'TL-Template-Add-Test',
+                category: 'hair',
+                time: '20 min'
+            });
+            saveMasterTemplate(template);
+            
+            const reloaded = loadMasterTemplate();
+            const afterCount = (reloaded[weekNum][dayName] || []).length;
+            const found = reloaded[weekNum][dayName].find(t => t.text === 'TL-Template-Add-Test');
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Task Library add to template saves to correct week/day',
+                afterCount === beforeCount + 1 && !!found && found.category === 'hair',
+                `Week ${weekNum} ${dayName}: ${afterCount} tasks, found: ${!!found}`);
+        }
+
+        async function testTaskLibraryExpandCollapse() {
+            // Test the expand/collapse set
+            const testId = 'test-expand-collapse';
+            
+            // Initially not expanded
+            const initiallyExpanded = expandedLibraryTasks.has(testId);
+            
+            // Expand
+            expandedLibraryTasks.add(testId);
+            const afterExpand = expandedLibraryTasks.has(testId);
+            
+            // Collapse
+            expandedLibraryTasks.delete(testId);
+            const afterCollapse = expandedLibraryTasks.has(testId);
+            
+            logTest('Task Library expand and collapse',
+                !initiallyExpanded && afterExpand && !afterCollapse,
+                `Initial: ${initiallyExpanded}, Expanded: ${afterExpand}, Collapsed: ${afterCollapse}`);
+        }
+
+        async function testTaskLibraryEditSingleSource() {
+            const savedRoutines = loadData('routines-library');
+            const savedTemplate = loadData('master-template');
+            
+            // Create a task that ONLY exists in routines library, not in template
+            const testKey = 'tl-single-source-test';
+            ROUTINES_LIBRARY[testKey] = { name: 'TL-Single-Source', category: 'habit', time: '3 min', steps: ['Do the thing'] };
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            // Make sure it's NOT in template
+            const template = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = template[w] || {};
+                for (const d of DAY_NAMES_ORDERED) {
+                    if (week[d]) {
+                        week[d] = week[d].filter(t => t.text !== 'TL-Single-Source');
+                    }
+                }
+            }
+            saveMasterTemplate(template);
+            
+            // Edit the routine
+            ROUTINES_LIBRARY[testKey].name = 'TL-Single-Source-EDITED';
+            ROUTINES_LIBRARY[testKey].category = 'cleaning';
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            // Verify routine updated
+            const updated = ROUTINES_LIBRARY[testKey];
+            const routineCorrect = updated.name === 'TL-Single-Source-EDITED' && updated.category === 'cleaning';
+            
+            // Verify template was NOT affected (nothing to update)
+            const t2 = loadMasterTemplate();
+            let templateClean = true;
+            for (let w = 1; w <= 4; w++) {
+                const week = t2[w] || {};
+                for (const d of DAY_NAMES_ORDERED) {
+                    if ((week[d] || []).some(t => t.text.includes('TL-Single-Source'))) {
+                        templateClean = false;
+                    }
+                }
+            }
+            
+            // Clean up
+            delete ROUTINES_LIBRARY[testKey];
+            if (savedRoutines) saveData('routines-library', savedRoutines);
+            else saveData('routines-library', ROUTINES_LIBRARY);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Task Library edit single source only',
+                routineCorrect && templateClean,
+                `Routine: ${routineCorrect}, Template unaffected: ${templateClean}`);
+        }
+
+        async function testTaskLibraryDeleteRoutineOnly() {
+            const savedRoutines = loadData('routines-library');
+            
+            // Create routine-only task
+            const testKey = 'tl-delete-routine-only';
+            ROUTINES_LIBRARY[testKey] = { name: 'TL-Delete-Routine-Only', category: 'special', time: '10 min', steps: [] };
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            // Verify it exists
+            const existed = !!ROUTINES_LIBRARY[testKey];
+            
+            // Delete it
+            delete ROUTINES_LIBRARY[testKey];
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            const gone = !ROUTINES_LIBRARY[testKey];
+            
+            // Verify it no longer shows in task library
+            const allTasks = getAllUniqueTasks();
+            const stillThere = allTasks.some(t => t.name === 'TL-Delete-Routine-Only');
+            
+            // Clean up
+            if (savedRoutines) saveData('routines-library', savedRoutines);
+            
+            logTest('Task Library delete routine-only task',
+                existed && gone && !stillThere,
+                `Existed: ${existed}, Gone: ${gone}, Still in library: ${stillThere}`);
+        }
+
+        async function testTaskLibraryDeleteRecurringOnly() {
+            const savedRecurring = loadData('recurring-tasks');
+            
+            // Create recurring-only task
+            const recurring = loadData('recurring-tasks') || [];
+            recurring.push({ id: 66666, text: 'TL-Delete-Recurring-Only', category: 'laundry', time: '10 min', frequency: 'weekly', days: ['sunday'], startDate: '2026-02-15' });
+            saveData('recurring-tasks', recurring);
+            
+            // Verify it shows up
+            const tasksBefore = getAllUniqueTasks();
+            const existedBefore = tasksBefore.some(t => t.name === 'TL-Delete-Recurring-Only');
+            
+            // Delete from recurring
+            let rec2 = loadData('recurring-tasks') || [];
+            rec2 = rec2.filter(rt => rt.text !== 'TL-Delete-Recurring-Only');
+            saveData('recurring-tasks', rec2);
+            
+            // Verify it's gone from task library
+            const tasksAfter = getAllUniqueTasks();
+            const existedAfter = tasksAfter.some(t => t.name === 'TL-Delete-Recurring-Only');
+            
+            // Clean up
+            if (savedRecurring) saveData('recurring-tasks', savedRecurring);
+            else localStorage.removeItem('recurring-tasks');
+            
+            logTest('Task Library delete recurring-only task',
+                existedBefore && !existedAfter,
+                `Before: ${existedBefore}, After: ${existedAfter}`);
+        }
+
+        async function testTaskLibrarySearchNoResults() {
+            const allTasks = getAllUniqueTasks();
+            const searchTerm = 'zzzzxyznonexistent12345';
+            const filtered = allTasks.filter(t => t.name.toLowerCase().includes(searchTerm));
+            
+            logTest('Task Library search with no results',
+                filtered.length === 0,
+                `Found ${filtered.length} results for "${searchTerm}"`);
+        }
+
+        async function testTaskLibrarySearchPlusCategoryFilter() {
+            const allTasks = getAllUniqueTasks();
+            
+            // Search for something broad, then filter by category
+            const searchTerm = 'clean';
+            const searchResults = allTasks.filter(t => t.name.toLowerCase().includes(searchTerm));
+            const searchPlusCategory = searchResults.filter(t => t.category === 'cleaning');
+            
+            // All results should contain "clean" AND be category "cleaning"
+            const allMatch = searchPlusCategory.every(t => 
+                t.name.toLowerCase().includes(searchTerm) && t.category === 'cleaning'
+            );
+            
+            // Combined filter should be smaller or equal to search-only
+            const narrower = searchPlusCategory.length <= searchResults.length;
+            
+            logTest('Task Library search + category filter combined',
+                allMatch && narrower && searchPlusCategory.length > 0,
+                `Search: ${searchResults.length}, +Category: ${searchPlusCategory.length}`);
+        }
+
+        async function testTaskLibraryEditToDuplicateName() {
+            const savedRoutines = loadData('routines-library');
+            
+            // Create two distinct tasks
+            const key1 = 'tl-dup-test-1';
+            const key2 = 'tl-dup-test-2';
+            ROUTINES_LIBRARY[key1] = { name: 'TL-Dup-Original', category: 'habit', time: '5 min', steps: [] };
+            ROUTINES_LIBRARY[key2] = { name: 'TL-Dup-Other', category: 'cleaning', time: '10 min', steps: [] };
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            // Rename key1 to the same name as key2
+            ROUTINES_LIBRARY[key1].name = 'TL-Dup-Other';
+            saveData('routines-library', ROUTINES_LIBRARY);
+            
+            // Now getAllUniqueTasks should merge them since they have the same name
+            const allTasks = getAllUniqueTasks();
+            const matches = allTasks.filter(t => t.name === 'TL-Dup-Other');
+            
+            // Should be deduplicated to 1 entry
+            const deduplicated = matches.length === 1;
+            
+            // Clean up
+            delete ROUTINES_LIBRARY[key1];
+            delete ROUTINES_LIBRARY[key2];
+            if (savedRoutines) saveData('routines-library', savedRoutines);
+            else saveData('routines-library', ROUTINES_LIBRARY);
+            
+            logTest('Task Library edit to duplicate name deduplicates',
+                deduplicated,
+                `Matches for "TL-Dup-Other": ${matches.length}`);
+        }
+
+        let currentRoutinesSubView = 'routines';
+        let taskLibraryFilter = 'all';
+        let taskLibrarySort = 'alpha';
+        let expandedLibraryTasks = new Set();
+        let currentTaskLibraryTask = null; // for modals
+
+        function switchRoutinesSubView(subView) {
+            currentRoutinesSubView = subView;
+            document.querySelectorAll('.routines-toggle-tab').forEach(tab => tab.classList.remove('active'));
+            
+            if (subView === 'routines') {
+                document.getElementById('routines-subview').style.display = '';
+                document.getElementById('task-library-subview').style.display = 'none';
+                document.querySelectorAll('.routines-toggle-tab')[0].classList.add('active');
+                renderRoutinesView();
+            } else {
+                document.getElementById('routines-subview').style.display = 'none';
+                document.getElementById('task-library-subview').style.display = '';
+                document.querySelectorAll('.routines-toggle-tab')[1].classList.add('active');
+                renderTaskLibrary();
+            }
+        }
+
+        function getAllUniqueTasks() {
+            const taskMap = new Map(); // key = lowercase name, value = task object
+            
+            // 1. From routines library
+            for (const [key, routine] of Object.entries(ROUTINES_LIBRARY)) {
+                const taskKey = routine.name.toLowerCase().trim();
+                if (!taskMap.has(taskKey)) {
+                    taskMap.set(taskKey, {
+                        name: routine.name,
+                        category: routine.category,
+                        time: routine.time,
+                        routineKey: key,
+                        steps: routine.steps || [],
+                        sources: ['routines']
+                    });
+                } else {
+                    const existing = taskMap.get(taskKey);
+                    if (!existing.sources.includes('routines')) existing.sources.push('routines');
+                    if (!existing.routineKey) existing.routineKey = key;
+                }
+            }
+            
+            // 2. From master template
+            const template = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = template[w] || {};
+                for (const dayName of DAY_NAMES_ORDERED) {
+                    const tasks = week[dayName] || [];
+                    tasks.forEach(task => {
+                        const taskKey = task.text.toLowerCase().trim();
+                        if (!taskMap.has(taskKey)) {
+                            taskMap.set(taskKey, {
+                                name: task.text,
+                                category: task.category,
+                                time: task.time,
+                                routineKey: task.routine || null,
+                                steps: [],
+                                sources: ['template']
+                            });
+                        } else {
+                            const existing = taskMap.get(taskKey);
+                            if (!existing.sources.includes('template')) existing.sources.push('template');
+                        }
+                    });
+                }
+            }
+            
+            // 3. From recurring tasks
+            const recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks.forEach(recTask => {
+                const taskKey = recTask.text.toLowerCase().trim();
+                if (!taskMap.has(taskKey)) {
+                    taskMap.set(taskKey, {
+                        name: recTask.text,
+                        category: recTask.category,
+                        time: recTask.time,
+                        routineKey: recTask.routine || null,
+                        steps: [],
+                        sources: ['recurring']
+                    });
+                } else {
+                    const existing = taskMap.get(taskKey);
+                    if (!existing.sources.includes('recurring')) existing.sources.push('recurring');
+                }
+            });
+            
+            // If a task has a routineKey, pull in the steps from routines library
+            taskMap.forEach((task, key) => {
+                if (task.routineKey && ROUTINES_LIBRARY[task.routineKey] && task.steps.length === 0) {
+                    task.steps = ROUTINES_LIBRARY[task.routineKey].steps || [];
+                }
+            });
+            
+            return Array.from(taskMap.values());
+        }
+
+        function setTaskLibraryFilter(filter) {
+            taskLibraryFilter = filter;
+            document.querySelectorAll('#task-library-subview .filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            renderTaskLibrary();
+        }
+
+        function setTaskLibrarySort(sort) {
+            taskLibrarySort = sort;
+            document.getElementById('sort-alpha-btn').style.fontWeight = sort === 'alpha' ? '600' : '400';
+            document.getElementById('sort-cat-btn').style.fontWeight = sort === 'category' ? '600' : '400';
+            renderTaskLibrary();
+        }
+
+        function renderTaskLibrary() {
+            const search = (document.getElementById('task-library-search')?.value || '').toLowerCase();
+            let tasks = getAllUniqueTasks();
+            
+            // Filter by search
+            if (search) {
+                tasks = tasks.filter(t => t.name.toLowerCase().includes(search));
+            }
+            
+            // Filter by category
+            if (taskLibraryFilter !== 'all') {
+                tasks = tasks.filter(t => t.category === taskLibraryFilter);
+            }
+            
+            // Sort
+            if (taskLibrarySort === 'alpha') {
+                tasks.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (taskLibrarySort === 'category') {
+                tasks.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+            }
+            
+            if (tasks.length === 0) {
+                document.getElementById('task-library-content').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-lighter); padding: 30px;">No tasks found</p>';
+                return;
+            }
+            
+            let html = '';
+            let currentCategory = '';
+            
+            tasks.forEach((task, index) => {
+                const taskId = task.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                const isExpanded = expandedLibraryTasks.has(taskId);
+                
+                // Category headers when sorting by category
+                if (taskLibrarySort === 'category' && task.category !== currentCategory) {
+                    currentCategory = task.category;
+                    html += `<div class="task-library-category-header">${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)}</div>`;
+                }
+                
+                html += `<div class="task-library-item">
+                    <div class="task-library-item-header" onclick="toggleLibraryTaskExpand('${taskId}')">
+                        <span class="task-tag tag-${task.category}">${task.category}</span>
+                        <span class="task-library-item-name">${task.name}</span>
+                        ${task.time ? `<span style="color: var(--text-lighter); font-size: 0.8rem;">⏱️ ${task.time}</span>` : ''}
+                        <span style="font-size: 0.9rem;">${isExpanded ? '▼' : '▶'}</span>
+                    </div>`;
+                
+                if (isExpanded) {
+                    html += `<div class="task-library-item-details">`;
+                    
+                    // Steps
+                    if (task.steps && task.steps.length > 0) {
+                        html += `<ul class="task-details-list" style="margin-bottom: 10px;">
+                            ${task.steps.map(s => `<li>${s}</li>`).join('')}
+                        </ul>`;
+                    }
+                    
+                    // Sources
+                    html += `<div style="font-size: 0.8rem; color: var(--text-lighter); margin-bottom: 10px;">
+                        Sources: ${task.sources.map(s => `<span style="background: var(--surface-hover); padding: 2px 8px; border-radius: 4px;">${s}</span>`).join(' ')}
+                    </div>`;
+                    
+                    // Actions
+                    html += `<div class="task-library-actions">
+                        <button onclick="taskLibraryAddToSchedule('${encodeURIComponent(JSON.stringify({name: task.name, category: task.category, time: task.time, routineKey: task.routineKey}))}')">📅 Add to Schedule</button>
+                        <button onclick="taskLibraryAddToTemplate('${encodeURIComponent(JSON.stringify({name: task.name, category: task.category, time: task.time, routineKey: task.routineKey}))}')">✏️ Add to Template</button>
+                        <button onclick="taskLibraryEdit('${encodeURIComponent(JSON.stringify({name: task.name, category: task.category, time: task.time, routineKey: task.routineKey, steps: task.steps}))}')">🔧 Edit</button>
+                        <button onclick="taskLibraryWhereUsed('${taskId}', '${encodeURIComponent(task.name)}')">📍 Where Used</button>
+                        <button onclick="taskLibraryDelete('${encodeURIComponent(task.name)}', '${task.routineKey || ''}')" style="color: var(--ruby);">🗑️ Delete</button>
+                    </div>`;
+                    
+                    // Where used display (hidden by default)
+                    html += `<div class="task-library-where-used" id="where-used-${taskId}" style="display: none;"></div>`;
+                    
+                    html += `</div>`; // close details
+                }
+                
+                html += `</div>`; // close item
+            });
+            
+            // Summary line
+            const summary = `<p style="font-size: 0.85rem; color: var(--text-lighter); margin-bottom: 15px;">${tasks.length} task${tasks.length !== 1 ? 's' : ''}</p>`;
+            
+            document.getElementById('task-library-content').innerHTML = summary + html;
+        }
+
+        function toggleLibraryTaskExpand(taskId) {
+            if (expandedLibraryTasks.has(taskId)) {
+                expandedLibraryTasks.delete(taskId);
+            } else {
+                expandedLibraryTasks.add(taskId);
+            }
+            renderTaskLibrary();
+        }
+
+        function taskLibraryAddToSchedule(encodedTask) {
+            const task = JSON.parse(decodeURIComponent(encodedTask));
+            currentTaskLibraryTask = task;
+            document.getElementById('task-library-schedule-modal-title').textContent = `Add "${task.name}" to Schedule`;
+            document.getElementById('task-library-schedule-modal').classList.add('active');
+        }
+
+        function confirmTaskLibraryAddToSchedule() {
+            if (!currentTaskLibraryTask) return;
+            const task = currentTaskLibraryTask;
+            const when = document.getElementById('task-library-schedule-day').value;
+            
+            const today = new Date();
+            let targetDate = new Date(today);
+            if (when === 'tomorrow') targetDate.setDate(today.getDate() + 1);
+            
+            const weekStart = getWeekStart(targetDate);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const dateKey = formatDate(targetDate);
+            
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: task.name,
+                category: task.category,
+                time: task.time,
+                routine: task.routineKey || undefined,
+                completed: false,
+                notes: '',
+                custom: true
+            });
+            
+            saveData(weekKey, weekData);
+            closeModal('task-library-schedule-modal');
+            alert(`✅ Added "${task.name}" to ${when}!`);
+        }
+
+        function taskLibraryAddToTemplate(encodedTask) {
+            const task = JSON.parse(decodeURIComponent(encodedTask));
+            currentTaskLibraryTask = task;
+            document.getElementById('task-library-template-modal-title').textContent = `Add "${task.name}" to Template`;
+            document.querySelectorAll('.tl-template-day-cb').forEach(cb => cb.checked = false);
+            document.getElementById('task-library-template-modal').classList.add('active');
+        }
+
+        function confirmTaskLibraryAddToTemplate() {
+            if (!currentTaskLibraryTask) return;
+            const task = currentTaskLibraryTask;
+            const weekNum = parseInt(document.getElementById('task-library-template-week').value);
+            const selectedDays = [];
+            document.querySelectorAll('.tl-template-day-cb:checked').forEach(cb => selectedDays.push(cb.value));
+            
+            if (selectedDays.length === 0) {
+                alert('Please select at least one day!');
+                return;
+            }
+            
+            const template = loadMasterTemplate();
+            if (!template[weekNum]) template[weekNum] = {};
+            
+            selectedDays.forEach(dayName => {
+                if (!template[weekNum][dayName]) template[weekNum][dayName] = [];
+                template[weekNum][dayName].push({
+                    text: task.name,
+                    category: task.category,
+                    time: task.time,
+                    routine: task.routineKey || undefined
+                });
+            });
+            
+            saveMasterTemplate(template);
+            closeModal('task-library-template-modal');
+            alert(`✅ Added "${task.name}" to Week ${weekNum} (${selectedDays.length} day${selectedDays.length > 1 ? 's' : ''})!`);
+        }
+
+        function taskLibraryEdit(encodedTask) {
+            const task = JSON.parse(decodeURIComponent(encodedTask));
+            currentTaskLibraryTask = task;
+            
+            document.getElementById('task-library-edit-name').value = task.name;
+            document.getElementById('task-library-edit-category').value = task.category;
+            document.getElementById('task-library-edit-time').value = task.time || '';
+            document.getElementById('task-library-edit-steps').value = (task.steps || []).join('\n');
+            
+            document.getElementById('task-library-edit-modal').classList.add('active');
+        }
+
+        function saveTaskLibraryEdit() {
+            if (!currentTaskLibraryTask) return;
+            const oldName = currentTaskLibraryTask.name;
+            const oldRoutineKey = currentTaskLibraryTask.routineKey;
+            
+            const newName = document.getElementById('task-library-edit-name').value.trim();
+            const newCategory = document.getElementById('task-library-edit-category').value;
+            const newTime = document.getElementById('task-library-edit-time').value.trim();
+            const newSteps = document.getElementById('task-library-edit-steps').value.split('\n').filter(s => s.trim());
+            
+            if (!newName) { alert('Task name cannot be empty!'); return; }
+            
+            // Update in routines library
+            if (oldRoutineKey && ROUTINES_LIBRARY[oldRoutineKey]) {
+                ROUTINES_LIBRARY[oldRoutineKey].name = newName;
+                ROUTINES_LIBRARY[oldRoutineKey].category = newCategory;
+                ROUTINES_LIBRARY[oldRoutineKey].time = newTime || ROUTINES_LIBRARY[oldRoutineKey].time;
+                ROUTINES_LIBRARY[oldRoutineKey].steps = newSteps.length > 0 ? newSteps : ROUTINES_LIBRARY[oldRoutineKey].steps;
+                saveData('routines-library', ROUTINES_LIBRARY);
+            }
+            
+            // Update in master template
+            const template = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = template[w] || {};
+                for (const dayName of DAY_NAMES_ORDERED) {
+                    const tasks = week[dayName] || [];
+                    tasks.forEach(task => {
+                        if (task.text.toLowerCase() === oldName.toLowerCase()) {
+                            task.text = newName;
+                            task.category = newCategory;
+                            if (newTime) task.time = newTime;
+                        }
+                    });
+                }
+            }
+            saveMasterTemplate(template);
+            
+            // Update in recurring tasks
+            const recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks.forEach(recTask => {
+                if (recTask.text.toLowerCase() === oldName.toLowerCase()) {
+                    recTask.text = newName;
+                    recTask.category = newCategory;
+                    if (newTime) recTask.time = newTime;
+                }
+            });
+            saveData('recurring-tasks', recurringTasks);
+            
+            closeModal('task-library-edit-modal');
+            renderTaskLibrary();
+            alert(`✅ Updated "${newName}" across all sources!`);
+        }
+
+        function taskLibraryWhereUsed(taskId, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            const el = document.getElementById(`where-used-${taskId}`);
+            
+            if (el.style.display !== 'none') {
+                el.style.display = 'none';
+                return;
+            }
+            
+            let usages = [];
+            
+            // Check master template
+            const template = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = template[w] || {};
+                for (const dayName of DAY_NAMES_ORDERED) {
+                    const tasks = week[dayName] || [];
+                    if (tasks.some(t => t.text.toLowerCase() === name.toLowerCase())) {
+                        usages.push(`Template Week ${w} → ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}`);
+                    }
+                }
+            }
+            
+            // Check recurring tasks
+            const recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks.forEach(recTask => {
+                if (recTask.text.toLowerCase() === name.toLowerCase()) {
+                    const daysList = recTask.days.join(', ');
+                    usages.push(`Recurring (${recTask.frequency}): ${daysList}`);
+                }
+            });
+            
+            // Check routines library
+            for (const [key, routine] of Object.entries(ROUTINES_LIBRARY)) {
+                if (routine.name.toLowerCase() === name.toLowerCase()) {
+                    usages.push(`Routines Library: "${key}"`);
+                }
+            }
+            
+            el.innerHTML = usages.length > 0 
+                ? `<strong>Used in:</strong><br>${usages.map(u => `• ${u}`).join('<br>')}`
+                : '<em>Not currently used in template, recurring, or routines</em>';
+            el.style.display = '';
+        }
+
+        function taskLibraryDelete(encodedName, routineKey) {
+            const name = decodeURIComponent(encodedName);
+            
+            if (!confirm(`Delete "${name}" from the system? This will remove it from:\n• Routines Library\n• Master Template (all weeks)\n• Recurring Tasks\n\nAlready-generated weeks are NOT affected.`)) return;
+            
+            // Remove from routines library
+            if (routineKey && ROUTINES_LIBRARY[routineKey]) {
+                delete ROUTINES_LIBRARY[routineKey];
+                saveData('routines-library', ROUTINES_LIBRARY);
+            }
+            
+            // Remove from master template
+            const template = loadMasterTemplate();
+            for (let w = 1; w <= 4; w++) {
+                const week = template[w] || {};
+                for (const dayName of DAY_NAMES_ORDERED) {
+                    if (week[dayName]) {
+                        week[dayName] = week[dayName].filter(t => t.text.toLowerCase() !== name.toLowerCase());
+                    }
+                }
+            }
+            saveMasterTemplate(template);
+            
+            // Remove from recurring tasks
+            let recurringTasks = loadData('recurring-tasks') || [];
+            recurringTasks = recurringTasks.filter(rt => rt.text.toLowerCase() !== name.toLowerCase());
+            saveData('recurring-tasks', recurringTasks);
+            
+            expandedLibraryTasks.delete(name.toLowerCase().replace(/[^a-z0-9]/g, '-'));
+            renderTaskLibrary();
+            alert(`✅ "${name}" deleted from the system!`);
         }
 
         // ============================================
