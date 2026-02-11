@@ -7680,11 +7680,19 @@ async function testEditAssignmentMovesTask() {
         }
 
         async function testMoveViaDropdown() {
+            const select = document.getElementById('move-task-day');
+            // Add a temporary option since dropdown is dynamically populated
+            const opt = document.createElement('option');
+            opt.value = '2026-02-16';
+            opt.textContent = 'Monday - Feb 16';
+            select.appendChild(opt);
+            
             document.getElementById('move-task-date').value = '';
-            document.getElementById('move-task-day').value = '2026-02-16';
+            select.value = '2026-02-16';
             
             const result = getMoveTargetDateKey();
-            document.getElementById('move-task-day').value = '';
+            select.value = '';
+            select.removeChild(opt);
             
             logTest('Move via dropdown returns dropdown value',
                 result === '2026-02-16',
@@ -7692,12 +7700,19 @@ async function testEditAssignmentMovesTask() {
         }
 
         async function testMoveDatePickerPriorityOverDropdown() {
+            const select = document.getElementById('move-task-day');
+            const opt = document.createElement('option');
+            opt.value = '2026-02-16';
+            opt.textContent = 'Monday - Feb 16';
+            select.appendChild(opt);
+            
             document.getElementById('move-task-date').value = '2026-03-20';
-            document.getElementById('move-task-day').value = '2026-02-16';
+            select.value = '2026-02-16';
             
             const result = getMoveTargetDateKey();
             document.getElementById('move-task-date').value = '';
-            document.getElementById('move-task-day').value = '';
+            select.value = '';
+            select.removeChild(opt);
             
             logTest('Date picker takes priority over dropdown when both set',
                 result === '2026-03-20',
