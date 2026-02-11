@@ -1252,6 +1252,129 @@
             showRecurringTasksModal(); // Refresh the list
             alert('✅ Recurring task deleted!');
         }
+        // ============================================
+        // CAPTURE LIST FUNCTIONS
+        // ============================================
+
+        let currentCaptureFilter = 'all';
+
+        function openAddCaptureItemModal() {
+            document.getElementById('add-capture-item-modal').classList.add('active');
+        }
+
+        function saveCaptureItem() {
+            const text = document.getElementById('capture-item-text').value.trim();
+            const category = document.getElementById('capture-item-category').value;
+            const priority = document.getElementById('capture-item-priority').value;
+            const notes = document.getElementById('capture-item-notes').value.trim();
+            
+            if (!text) {
+                alert('Please enter what you discovered!');
+                return;
+            }
+            
+            // Load existing capture list
+            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            
+            // Create new item
+            const newItem = {
+                id: Date.now(),
+                text: text,
+                category: category,
+                priority: priority,
+                notes: notes,
+                status: 'unassigned', // unassigned, assigned, completed
+                assignedTo: null, // { dateKey, weekKey, time }
+                createdAt: new Date().toISOString()
+            };
+            
+            captureList.push(newItem);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            // Clear form
+            document.getElementById('capture-item-text').value = '';
+            document.getElementById('capture-item-category').value = 'deep-clean';
+            document.getElementById('capture-item-priority').value = '';
+            document.getElementById('capture-item-notes').value = '';
+            
+            closeModal('add-capture-item-modal');
+            renderCaptureList();
+        }
+
+        function renderCaptureList() {
+            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const container = document.getElementById('capture-list-content');
+            
+            // Filter items
+            let filteredItems = captureList;
+            if (currentCaptureFilter === 'unassigned') {
+                filteredItems = captureList.filter(item => item.status === 'unassigned');
+            } else if (currentCaptureFilter === 'assigned') {
+                filteredItems = captureList.filter(item => item.status === 'assigned');
+            }
+            
+            if (filteredItems.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-lighter); text-align: center; padding: 40px 20px;">No capture items yet! Click "+ Add Item" to get started.</p>';
+                return;
+            }
+            
+            let html = '';
+            filteredItems.forEach(item => {
+                const statusClass = item.status === 'unassigned' ? 'unassigned' : 'assigned';
+                const assignmentInfo = item.assignedTo 
+                    ? `<div style="font-size: 0.85rem; color: var(--primary); margin-top: 5px;">📅 Scheduled for ${item.assignedTo.dateKey}${item.assignedTo.time ? ` at ${item.assignedTo.time}` : ''}</div>`
+                    : '';
+                
+                html += `
+                    <div class="capture-item ${statusClass}">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px;">${item.text}</div>
+                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                    <span class="task-tag tag-${item.category}">${item.category}</span>
+                                    ${item.priority ? `<span style="font-size: 0.85rem; color: var(--text-lighter);">Priority: ${item.priority}</span>` : ''}
+                                    <span class="capture-status ${statusClass}">${item.status === 'unassigned' ? 'Unassigned' : 'Assigned'}</span>
+                                </div>
+                                ${assignmentInfo}
+                            </div>
+                        </div>
+                        ${item.notes ? `<div style="font-size: 0.9rem; color: var(--text-lighter); margin-bottom: 10px; font-style: italic;">${item.notes}</div>` : ''}
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            ${item.status === 'unassigned' ? `<button class="task-action-btn-small btn-edit" onclick="assignCaptureItem(${item.id})">📅 Assign to Day</button>` : ''}
+                            <button class="task-action-btn-small btn-delete" onclick="deleteCaptureItem(${item.id})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function filterCaptureList(filter) {
+            currentCaptureFilter = filter;
+            
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            renderCaptureList();
+        }
+
+        function assignCaptureItem(itemId) {
+            // TODO: Open modal to select date and optional time
+            // For now, just show alert
+            alert('Assignment feature coming in next step!');
+        }
+
+        function deleteCaptureItem(itemId) {
+            if (!confirm('Delete this capture item?')) return;
+            
+            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            captureList = captureList.filter(item => item.id !== itemId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            renderCaptureList();
+        }
 
         function addCustomTask(event) {
             event.preventDefault();
@@ -2205,7 +2328,12 @@
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             event.currentTarget.classList.add('active');
             
-            if (view === 'routines') renderRoutinesView();
+        if (view === 'routines') renderRoutinesView();
+            else if (view === 'metrics') renderMetricsView();
+            else if (view === 'month') renderMonthView();
+            else if (view === 'capture') renderCaptureList();
+            else renderCurrentView();
+            
             else if (view === 'metrics') renderMetricsView();
             else if (view === 'month') renderMonthView();
             else renderCurrentView();
