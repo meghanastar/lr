@@ -391,6 +391,149 @@
         }
 
 
+        /* Template Editor */
+        .template-week-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .template-week-tab {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px 8px;
+            border: 2px solid var(--border);
+            background: var(--surface);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .template-week-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-color: var(--primary);
+        }
+        .template-week-tab .week-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        .template-week-tab.current-week::after {
+            content: ' •';
+            color: var(--gold);
+        }
+        .template-day-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .template-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .template-day-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+        .template-task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: var(--surface-hover);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .template-task-item .task-tag {
+            font-size: 0.7rem;
+        }
+        .template-task-actions {
+            display: flex;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .template-task-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .template-task-actions button:hover {
+            background: var(--primary-light);
+        }
+        .template-add-btn {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed var(--border);
+            background: transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text-lighter);
+            transition: all 0.3s ease;
+        }
+        .template-add-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-lighter);
+        }
+        .routine-picker-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .routine-picker-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .routine-picker-item:hover {
+            background: var(--primary-lighter);
+            border-color: var(--primary);
+        }
+        .routine-picker-search {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+        .routine-picker-search:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.15);
+        }
+        .copy-week-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .copy-week-btn:hover {
+            background: var(--amethyst-lighter);
+            border-color: var(--amethyst);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -517,21 +660,25 @@
             <div class="nav-icon">🗓️</div>
             <div class="nav-label">Month</div>
         </button>
-        <button class="nav-item" onclick="switchView('metrics')">
-            <div class="nav-icon">📊</div>
-            <div class="nav-label">Metrics</div>
+        <button class="nav-item" onclick="switchView('template')">
+            <div class="nav-icon">✏️</div>
+            <div class="nav-label">Template</div>
         </button>
         <button class="nav-item" onclick="switchView('routines')">
             <div class="nav-icon">📖</div>
             <div class="nav-label">Routines</div>
         </button>
-        <button class="nav-item" onclick="switchView('settings')">
-            <div class="nav-icon">⚙️</div>
-            <div class="nav-label">Settings</div>
-        </button>
         <button class="nav-item" onclick="switchView('capture')">
             <div class="nav-icon">📝</div>
             <div class="nav-label">Capture</div>
+        </button>
+        <button class="nav-item" onclick="switchView('metrics')">
+            <div class="nav-icon">📊</div>
+            <div class="nav-label">Metrics</div>
+        </button>
+        <button class="nav-item" onclick="switchView('settings')">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Settings</div>
         </button>
     </div>
     
@@ -803,6 +950,88 @@
                 </p>
             </div>
         </div>
+<div id="template-view" class="view-content hidden">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 5px;">✏️ Master Template</h2>
+            <p style="color: var(--text-lighter); margin-bottom: 15px; font-size: 0.9rem;" id="template-current-week-info">4-week rotating schedule</p>
+            
+            <div class="template-week-tabs" id="template-week-tabs"></div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="copy-week-btn" onclick="copyWeekTemplate()">📋 Copy This Week</button>
+                <button class="copy-week-btn" onclick="pasteWeekTemplate()">📌 Paste to This Week</button>
+                <button class="copy-week-btn" onclick="clearWeekTemplate()">🗑️ Clear This Week</button>
+            </div>
+            
+            <div id="template-content"></div>
+        </div>
+
+        <div id="add-template-task-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Add Task to Template</h2>
+                    <button class="modal-close" onclick="closeModal('add-template-task-modal')">×</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <input type="text" class="routine-picker-search" id="template-routine-search" placeholder="🔍 Search routines..." oninput="filterRoutinePicker()">
+                </div>
+                
+                <div class="routine-picker-list" id="routine-picker-list"></div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);">
+                    <h3 style="margin-bottom: 10px; font-size: 1rem;">Or add a custom task:</h3>
+                    <div class="form-group">
+                        <input type="text" class="form-input" id="template-custom-task-name" placeholder="Task name">
+                    </div>
+                    <div class="form-group">
+                        <select class="form-select" id="template-custom-task-category">
+                            <option value="habit">Daily Habit</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="skincare">Skincare</option>
+                            <option value="hair">Hair Care</option>
+                            <option value="laundry">Laundry</option>
+                            <option value="special">Special</option>
+                            <option value="deepclean">Deep Clean</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="form-input" id="template-custom-task-time" placeholder="Time estimate (e.g., 5 min)">
+                    </div>
+                    <button class="btn btn-primary" onclick="addCustomTaskToTemplate()">Add Custom Task</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-template-task-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Edit Template Task</h2>
+                    <button class="modal-close" onclick="closeModal('edit-template-task-modal')">×</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Task Name</label>
+                    <input type="text" class="form-input" id="edit-template-task-name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="edit-template-task-category">
+                        <option value="habit">Daily Habit</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="skincare">Skincare</option>
+                        <option value="hair">Hair Care</option>
+                        <option value="laundry">Laundry</option>
+                        <option value="special">Special</option>
+                        <option value="deepclean">Deep Clean</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Estimate</label>
+                    <input type="text" class="form-input" id="edit-template-task-time" placeholder="e.g., 5 min">
+                </div>
+                <button class="btn btn-primary" onclick="saveTemplateTaskEdit()">Save Changes</button>
+            </div>
+        </div>
+
 <div id="test-view" class="view-content hidden">
         <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 20px;">🧪 Test Suite</h2>
         
@@ -996,72 +1225,82 @@
 
 
     <script>
-        const ROUTINES_LIBRARY = {
+        let ROUTINES_LIBRARY = {
             'make-bed': { name: 'Make Your Bed', time: '2 min', category: 'habit', steps: ['Pull covers up smooth', 'Fluff pillows', 'Takes 90 seconds', 'Sets the tone for your day'] },
-            'dishes': { name: 'Dishes Protocol', time: '5 min', category: 'habit', steps: ['After every meal/snack', 'Immediately to sink OR dishwasher', 'No exceptions, no "later"', 'Wipe down counter/table', 'Future you will thank you!'] },
+            'dishes': { name: 'Dishes Protocol', time: '5 min', category: 'habit', steps: ['After every meal/snack', 'Immediately to sink OR dishwasher', 'No exceptions, no \"later\"', 'Wipe down counter/table', 'If dishwasher is clean, unload it first', 'Future you will thank you!'] },
             'bathroom-wipe': { name: 'Bathroom Sink Wipe', time: '30 sec', category: 'habit', steps: ['Rinse electric toothbrush thoroughly', 'Wipe toothbrush handle with hand towel', 'Use same damp towel to swipe the sink', 'Takes 30 seconds max', 'Prevents gross buildup'] },
-            'evening-tidy': { name: '10-Minute Evening Tidy', time: '10 min', category: 'habit', steps: ['Walk through apartment with "doesn\'t belong here" eyes', 'Return items to their homes', 'Clear kitchen counters', 'Quick dish check (catch any strays)', 'Lay out tomorrow\'s outfit', 'Check that bathroom is tidy', 'Sets you up for peaceful morning'] },
+            'evening-tidy': { name: '10-Minute Evening Tidy', time: '10 min', category: 'habit', steps: ['Walk through apartment with \"doesn\'t belong here\" eyes', 'Return items to their homes', 'Clear kitchen counters', 'Quick dish check (catch any strays)', 'Lay out tomorrow\'s outfit', 'Check that bathroom is tidy', 'Sets you up for peaceful morning'] },
             'retinol': { name: 'Retinol Night Routine', time: '20 min', category: 'skincare', steps: ['Remove ALL makeup thoroughly (oil cleanser/micellar water)', 'Cleanse with regular face wash', 'Pat dry gently', 'WAIT 5-10 minutes (skin must be completely dry!)', 'Apply retinol (pea-sized amount)', 'Avoid eye area', 'WAIT another 10-15 minutes', 'Moisturizer + eye cream', 'NO vitamin C this night', 'NO other actives'] },
             'vitamin-c': { name: 'Vitamin C Night', time: '15 min', category: 'skincare', steps: ['Remove makeup thoroughly', 'Cleanse', 'Toner', 'Vitamin C serum (wait a few minutes)', 'Other serums if you have them', 'Moisturizer + eye cream', 'Not on retinol nights!'] },
             'hydrating-mask': { name: 'Hydrating Face Mask', time: '20 min', category: 'skincare', steps: ['Do this before your evening routine', 'Cleanse face first', 'Apply hydrating mask', 'Leave on 10-20 min', 'Relax! Read, watch something, vibe', 'Remove/rinse', 'Continue with evening routine + Vitamin C'] },
-            'hair-wash': { name: 'Hair Wash Day', time: '30-40 min', category: 'hair', steps: ['Rinse body', 'Shampoo hair (focus scalp not ends)', 'Condition (mid-lengths to ends, avoid roots)', 'Let sit while washing body', 'Rinse thoroughly', 'Pat hair with towel (don\'t rub)', 'Moisturize body', 'Proceed to styling'] },
-            'kitchen-clean': { name: 'Kitchen Deep Clean', time: '30-45 min', category: 'cleaning', steps: ['Wipe all counters and backsplash', 'Clean stovetop thoroughly', 'Microwave inside and out', 'Scrub sink, shine faucet', 'Sweep and mop floors', 'Move and shake rugs', 'Take out trash'] },
-            'vacuum-floors': { name: 'Vacuum & Floors', time: '30 min', category: 'cleaning', steps: ['Vacuum all carpets', 'Shake rugs outside (not the shag rug)', 'Swiffer/sweep hard floors', 'Spot clean any stains', 'Return rugs to place'] },
+            'hair-wash': { name: 'Hair Wash Day (Full Wash)', time: '30-40 min', category: 'hair', steps: ['Rinse body', 'Shampoo hair (focus scalp not ends)', 'Condition (mid-lengths to ends, avoid roots)', 'Let sit while washing body', 'Rinse thoroughly', 'Pat hair with towel (don\'t rub)', 'Moisturize body', 'Proceed to styling'] },
+            'blowout': { name: 'Blowout / Style Day', time: '30-45 min', category: 'hair', steps: ['Apply heat protectant', 'Blow dry (diffuse for curly, round brush for straight)', 'Style as desired', 'Set with light hold product', 'Style should last 2-3 days with preservation'] },
+            'hair-preserve': { name: 'Hair Preservation Day', time: '5 min', category: 'hair', steps: ['Dry shampoo at roots if needed', 'Gentle brush/rearrange', 'Avoid getting hair wet', 'Silk/satin pillowcase helps overnight', 'Can usually get 2-3 days from a blowout'] },
+            'curly-airdry': { name: 'Curly Air-Dry Day', time: '5 min', category: 'hair', steps: ['Apply curl cream/product to wet hair', 'Scrunch gently', 'Let air dry (don\'t touch while drying)', 'Refresh next day with spray bottle + product', 'Usually refresh-able for 2-3 days'] },
+            'scalp-refresh': { name: 'Scalp Refresh (No Full Wash)', time: '5 min', category: 'hair', steps: ['Rinse scalp with water only (or co-wash)', 'Dry shampoo at roots', 'Restyle as needed', 'Good option for post-workout without full wash'] },
+            'clean-hairbrushes': { name: 'Clean All Hairbrushes', time: '20-30 min', category: 'hair', steps: ['Remove all hair from brushes', 'Soak in warm soapy water (10-15 min)', 'Scrub with old toothbrush', 'Rinse thoroughly', 'Lay flat to dry', 'Includes travel brushes!'] },
+            'quick-rinse': { name: 'Quick Body Rinse', time: '5 min', category: 'habit', steps: ['Rinse body with water', 'Quick soap on key areas', 'No hair washing', 'Moisturize after'] },
+            'full-shower': { name: 'Full Shower (Body + Hair)', time: '20-30 min', category: 'hair', steps: ['Full hair wash routine', 'Full body wash', 'Moisturize body after', 'Continue to hair styling'] },
+            'shave-day': { name: 'Shave Day', time: '30-40 min', category: 'hair', steps: ['Combine with hair wash day for efficiency', 'Exfoliate first (shower gloves)', 'Use shaving cream, go with the grain', 'Full body shave', 'Moisturize well after', 'Clean razor / check if blade needs switching'] },
+            'kitchen-clean': { name: 'Kitchen Weekly Reset', time: '30-45 min', category: 'cleaning', steps: ['Wipe all counters and backsplash', 'Clean stovetop thoroughly', 'Microwave inside and out', 'Scrub sink, shine faucet', 'Sweep and mop floors', 'Move and shake rugs', 'Take out trash', 'Check fridge for expired items'] },
             'bathroom-quick': { name: 'Bathroom Quick-Clean', time: '15 min', category: 'cleaning', steps: ['Wipe down toilet seat and rim', 'Wipe sink and faucet', 'Clean mirror', 'Sweep floor', 'Check supplies (TP, soap)', 'Hang fresh hand towel'] },
-            'pillowcases': { name: 'Pillowcases Laundry', time: '5 min', category: 'laundry', steps: ['Strip pillowcases from bed', 'Add to normal laundry load', 'Wash with your regular clothes', 'Put fresh pillowcases on when dry', 'Every week keeps skin happy!'] }
-        };
+            'vacuum-floors': { name: 'Vacuum & Floors', time: '30 min', category: 'cleaning', steps: ['Vacuum all carpets', 'Shake rugs outside (not the shag rug)', 'Swiffer/sweep hard floors', 'Spot clean any stains', 'Return rugs to place'] },
+            'pillowcases': { name: 'Pillowcases Laundry', time: '5 min', category: 'laundry', steps: ['Strip pillowcases from bed', 'Add to normal laundry load', 'Put fresh pillowcases on when dry', 'Every week keeps skin happy!'] },
+            'bathroom-deep': { name: 'Bathroom Deep Clean (Toilet + Sink)', time: '30 min', category: 'deepclean', steps: ['Deep clean toilet (inside bowl, outside, base, handle)', 'Deep clean sink and faucet', 'Wipe down all bathroom surfaces', 'Clean mirror thoroughly', 'Organize products if needed'] },
+            'bedding-wash': { name: 'Bedding Wash', time: '15 min', category: 'laundry', steps: ['Strip fitted sheets', 'Strip duvet cover', 'Wash on warm cycle', 'Dry thoroughly', 'Remake bed with fresh bedding'] },
+            'kitchen-deep': { name: 'Kitchen Deep Clean', time: '1-1.5 hours', category: 'deepclean', steps: ['Everything in weekly reset PLUS:', 'Clean inside of oven', 'Clean inside of fridge (remove everything, wipe shelves)', 'Clean behind/under small appliances', 'Wipe cabinet fronts', 'Deep clean trash can', 'Clean dishwasher (run empty with vinegar)'] },
+            'bathroom-full-deep': { name: 'Bathroom Full Deep Clean (Tub + Floors)', time: '45 min', category: 'deepclean', steps: ['Everything in biweekly clean PLUS:', 'Scrub tub/shower thoroughly', 'Clean shower head (vinegar soak)', 'Mop bathroom floor', 'Clean baseboards', 'Wash bath mat', 'Deep clean any storage/shelves'] },
+            'dusting': { name: 'Dusting', time: '20-30 min', category: 'cleaning', steps: ['Dust all surfaces (shelves, window sills, furniture tops)', 'Dust light fixtures', 'Dust baseboards in main areas', 'Dust electronics/TV', 'Wipe down doorknobs and light switches'] },
+            'normal-laundry': { name: 'Normal Laundry Load', time: '10 min', category: 'laundry', steps: ['Sort: bag up socks & undies separately', 'Include pillowcases if it\'s that week', 'Wash on normal cycle', 'Dry or hang to dry', 'Fold and put away IMMEDIATELY'] },
+            'delicates-laundry': { name: 'Delicates Load', time: '10 min', category: 'laundry', steps: ['Separate by type: jeans, workout clothes, other', 'Wash on gentle/delicate cycle', 'Air dry in bedroom or front room', 'Put away once dry'] },
+            'towels-laundry': { name: 'Towels Load', time: '10 min', category: 'laundry', steps: ['Collect all towels (bathroom, kitchen, hand towels)', 'Wash on hot with extra rinse', 'Dry thoroughly (high heat OK)', 'Fold and put away', 'Replace with fresh towels'] },
+            'cleaning-towels-laundry': { name: 'Cleaning Towels Load', time: '5 min', category: 'laundry', steps: ['Collect all used cleaning rags/towels', 'Wash on hot (no fabric softener)', 'Dry thoroughly', 'ALWAYS the LAST laundry load after deep cleaning'] },
+            'blankets-laundry': { name: 'Blankets Load', time: '10 min', category: 'laundry', steps: ['Check care labels', 'Wash on gentle if possible', 'May need to do alone (large items)', 'Dry on low or air dry'] },
+            'merino-wool': { name: 'Merino Wool Hand Wash', time: '20-30 min', category: 'laundry', steps: ['Use special wool detergent ONLY', 'Fill basin with cool/lukewarm water', 'Gently submerge and squeeze (don\'t wring)', 'Soak 10-15 min', 'Rinse gently in clean water', 'Press water out with towel (don\'t wring)', 'Lay flat to dry', 'NEVER machine wash or dryer'] },
+            'wash-brushes': { name: 'Wash Makeup Brushes & Sponges', time: '30-45 min', category: 'special', steps: ['Wet brushes under lukewarm water (tips down)', 'Apply brush cleanser or gentle soap', 'Swirl on cleaning mat or palm', 'Rinse until water runs clear', 'Squeeze out excess water', 'Reshape bristles', 'Lay flat to dry overnight', 'Clean sponges similarly (squeeze method)'] },
+            'post-trip-intense': { name: 'Post-Trip Unpack (Intense)', time: '2-3 hours', category: 'special', steps: ['Get out all makeup brushes - wash, dry, put away', 'Take out face towels - laundry pile', 'Take out shower gloves - laundry or replace', 'Take out brush cleaner towels - laundry', 'Repack with fresh towels & gloves', 'Check levels: shampoo, conditioner, face wash, everything', 'Check razor blade - switch if needed', 'Check makeup & hair product levels', 'Order replacements if needed', 'Sort all travel clothes into laundry piles', 'Separate undergarments into bag', 'Start laundry loads', 'Stow luggage properly'] },
+            'post-trip-chill': { name: 'Post-Trip Unpack (Chill Weekend)', time: '30-45 min', category: 'special', steps: ['Unpack clothes - laundry or closet', 'Quick check on travel supplies', 'Repack anything that needs refreshing', 'Stow bag'] },
+            'pre-trip': { name: 'Pre-Trip Packing', time: '1-2 hours', category: 'special', steps: ['Check packing list', 'Pack clothes by day/outfit', 'Pack toiletries/skincare', 'Pack hair supplies & tools', 'Pack makeup', 'Charge devices', 'Confirm travel details', 'Clean apartment before leaving (at least basic tidy)'] },
+            'post-hosting': { name: 'Post-Hosting Cleanup', time: '30-60 min', category: 'special', steps: ['Collect all dishes - dishwasher/sink', 'Take out trash and recycling', 'Wipe down all surfaces', 'Sweep/vacuum main areas', 'Put furniture back in place', 'Quick bathroom check', 'Deal with leftover food', 'Start a laundry load if needed'] },
+            'gift-unwrap': { name: 'Gift Unwrapping Protocol', time: '5 min', category: 'habit', steps: ['The moment a gift gets unwrapped:', 'Decide: keep the bag/paper or not', 'If keeping: put directly in IKEA storage case', 'If not: recycling/trash immediately', 'Put gift in its home right away', 'Don\'t let wrapping/bags accumulate'] }
+                };
 
+        // 4-WEEK ROTATING TEMPLATE SYSTEM
+        // Anchor: Sunday Feb 15, 2026 = Week 1, Day 1
+        const TEMPLATE_ANCHOR = '2026-02-15'; // Sunday Feb 15, 2026
+        const DAY_NAMES_ORDERED = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+        function getWeekNumber(date) {
+            const anchor = parseLocalDate(TEMPLATE_ANCHOR);
+            const d = new Date(date);
+            d.setHours(0,0,0,0);
+            anchor.setHours(0,0,0,0);
+            const diffMs = d.getTime() - anchor.getTime();
+            const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+            // Modulo 4 to get week 1-4 (handle negative weeks before anchor)
+            return ((diffWeeks % 4) + 4) % 4 + 1; // Returns 1, 2, 3, or 4
+        }
+
+        function loadMasterTemplate() {
+            return loadData('master-template') || { 1: {}, 2: {}, 3: {}, 4: {} };
+        }
+
+        function saveMasterTemplate(template) {
+            saveData('master-template', template);
+        }
+
+        function getTemplateForDay(weekNum, dayName) {
+            const template = loadMasterTemplate();
+            if (template[weekNum] && template[weekNum][dayName]) {
+                return template[weekNum][dayName];
+            }
+            return [];
+        }
+
+        // Legacy support: keep DEFAULT_TEMPLATE as empty fallback
         const DEFAULT_TEMPLATE = {
-            monday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
-                { text: 'Retinol night', category: 'skincare', routine: 'retinol' }
-            ],
-            tuesday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' }
-            ],
-            wednesday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
-                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' }
-            ],
-            thursday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
-                { text: 'Hair wash day', category: 'hair', routine: 'hair-wash' }
-            ],
-            friday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' },
-                { text: 'Hydrating face mask', category: 'skincare', routine: 'hydrating-mask' },
-                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' },
-                { text: 'Quick vacuum', category: 'cleaning' }
-            ],
-            saturday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Dishes protocol', category: 'habit', routine: 'dishes' },
-                { text: 'Bathroom wipe', category: 'habit', routine: 'bathroom-wipe' },
-                { text: '10-min evening tidy', category: 'habit', routine: 'evening-tidy' }
-            ],
-            sunday: [
-                { text: 'Make bed', category: 'habit', routine: 'make-bed' },
-                { text: 'Kitchen deep clean', category: 'cleaning', time: '10:00', routine: 'kitchen-clean' },
-                { text: 'Vacuum & floors', category: 'cleaning', routine: 'vacuum-floors' },
-                { text: 'Bathroom quick-clean', category: 'cleaning', routine: 'bathroom-quick' },
-                { text: 'Vitamin C night', category: 'skincare', routine: 'vitamin-c' },
-                { text: 'Pillowcases laundry', category: 'laundry', routine: 'pillowcases' }
-            ]
+            sunday: [], monday: [], tuesday: [], wednesday: [],
+            thursday: [], friday: [], saturday: []
         };
 
         let currentView = 'today';
@@ -1088,9 +1327,10 @@
 
         function getWeekStart(date = new Date()) {
             const d = new Date(date);
-            const day = d.getDay();
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-            return new Date(d.setDate(diff));
+            d.setHours(0, 0, 0, 0);
+            const day = d.getDay(); // 0=Sunday
+            d.setDate(d.getDate() - day); // Go back to Sunday
+            return d;
         }
         
         function parseLocalDate(dateKey) {
@@ -1101,7 +1341,7 @@
 
         function formatDate(date) { return date.toISOString().split('T')[0]; }
         function getWeekKey(weekStart) { return `week-${formatDate(weekStart)}`; }
-        function getDayName(dayIndex) { return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][dayIndex]; }
+        function getDayName(dayIndex) { return ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayIndex]; }
         function formatDisplayDate(date) { const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }; return date.toLocaleDateString('en-US', options); }
         function formatShortDate(date) { const options = { month: 'short', day: 'numeric' }; return date.toLocaleDateString('en-US', options); }
 
@@ -1112,6 +1352,7 @@
 
             const weekData = {};
             const recurringTasks = loadData('recurring-tasks') || [];
+            const weekNum = getWeekNumber(weekStart);
             
             for (let i = 0; i < 7; i++) {
                 const dayDate = new Date(weekStart);
@@ -1119,12 +1360,13 @@
                 const dayName = getDayName(i);
                 const dateKey = formatDate(dayDate);
                 
-                // Start with template tasks
-                const dayTasks = DEFAULT_TEMPLATE[dayName].map(task => ({
+                // Start with master template tasks for this week number + day
+                const templateTasks = getTemplateForDay(weekNum, dayName);
+                const dayTasks = templateTasks.map(task => ({
                     ...task,
                     id: Date.now() + Math.random(),
                     completed: false,
-                    notes: ''
+                    notes: task.notes || ''
                 }));
                 
                 // Add recurring tasks that apply to this day
@@ -2160,6 +2402,7 @@ function editCaptureAssignment(itemId) {
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                             <button class="task-action-btn-small btn-edit" onclick="openEditRoutineModal('${key}')">✏️ Edit</button>
                             <button class="task-action-btn-small" style="background: var(--emerald); color: white;" onclick="openAddRoutineToScheduleModal('${key}')">📅 Add to Schedule</button>
+                            <button class="task-action-btn-small" style="background: var(--amethyst); color: white;" onclick="openAddRoutineToTemplateModal('${key}')">✏️ Add to Template</button>
                             <button class="task-action-btn-small btn-delete" onclick="deleteRoutine('${key}')">🗑️ Delete</button>
                         </div>
                     </div>
@@ -2956,6 +3199,7 @@ function editCaptureAssignment(itemId) {
     else if (view === 'metrics') renderMetricsView();
     else if (view === 'month') renderMonthView();
     else if (view === 'capture') renderCaptureList();
+    else if (view === 'template') renderTemplateView();
     else renderCurrentView();
 }
 
@@ -4031,6 +4275,318 @@ async function testEditAssignmentMovesTask() {
                 'Last write wins - may cause desync if multiple tabs open');
         }
         
+
+        // ============================================
+        // MASTER TEMPLATE EDITOR
+        // ============================================
+        
+        let currentTemplateWeek = 1;
+        let copiedWeekData = null;
+        let currentTemplateAddDay = null;
+        let currentTemplateEditTask = null; // { weekNum, dayName, taskIndex }
+
+        function renderTemplateView() {
+            const currentWeekNum = getWeekNumber(new Date());
+            
+            // Update info text
+            document.getElementById('template-current-week-info').textContent = 
+                `4-week rotating schedule — This week is Week ${currentWeekNum}`;
+            
+            // Render week tabs
+            let tabsHtml = '';
+            for (let w = 1; w <= 4; w++) {
+                const isActive = w === currentTemplateWeek ? 'active' : '';
+                const isCurrent = w === currentWeekNum ? 'current-week' : '';
+                tabsHtml += `<button class="template-week-tab ${isActive} ${isCurrent}" onclick="switchTemplateWeek(${w})">
+                    Week ${w}
+                    ${w === currentWeekNum ? '<div class=\"week-label\">current</div>' : ''}
+                </button>`;
+            }
+            document.getElementById('template-week-tabs').innerHTML = tabsHtml;
+            
+            // Render days for this week
+            const template = loadMasterTemplate();
+            const weekTemplate = template[currentTemplateWeek] || {};
+            
+            let html = '';
+            DAY_NAMES_ORDERED.forEach(dayName => {
+                const tasks = weekTemplate[dayName] || [];
+                const displayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+                
+                let tasksHtml = '';
+                tasks.forEach((task, index) => {
+                    tasksHtml += `
+                        <div class="template-task-item">
+                            <span class="task-tag tag-${task.category}">${task.category}</span>
+                            <span style="flex: 1;">${task.text}</span>
+                            ${task.time ? `<span style="color: var(--text-lighter); font-size: 0.8rem;">⏱️ ${task.time}</span>` : ''}
+                            <div class="template-task-actions">
+                                <button onclick="editTemplateTask(${currentTemplateWeek}, '${dayName}', ${index})" title="Edit">✏️</button>
+                                <button onclick="moveTemplateTaskUp(${currentTemplateWeek}, '${dayName}', ${index})" title="Move up">⬆️</button>
+                                <button onclick="moveTemplateTaskDown(${currentTemplateWeek}, '${dayName}', ${index})" title="Move down">⬇️</button>
+                                <button onclick="removeTemplateTask(${currentTemplateWeek}, '${dayName}', ${index})" title="Remove">❌</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="template-day-card">
+                        <div class="template-day-header">
+                            <span class="template-day-name">${displayName}</span>
+                            <span style="font-size: 0.85rem; color: var(--text-lighter);">${tasks.length} task${tasks.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        ${tasksHtml}
+                        <button class="template-add-btn" onclick="openAddTemplateTaskModal('${dayName}')">+ Add Task</button>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('template-content').innerHTML = html;
+        }
+
+        function switchTemplateWeek(weekNum) {
+            currentTemplateWeek = weekNum;
+            renderTemplateView();
+        }
+
+        function openAddTemplateTaskModal(dayName) {
+            currentTemplateAddDay = dayName;
+            document.getElementById('template-routine-search').value = '';
+            document.getElementById('template-custom-task-name').value = '';
+            document.getElementById('template-custom-task-time').value = '';
+            renderRoutinePicker();
+            document.getElementById('add-template-task-modal').classList.add('active');
+        }
+
+        function renderRoutinePicker(filter = '') {
+            const search = filter.toLowerCase();
+            let html = '';
+            
+            for (const [key, routine] of Object.entries(ROUTINES_LIBRARY)) {
+                if (search && !routine.name.toLowerCase().includes(search) && 
+                    !routine.category.toLowerCase().includes(search)) continue;
+                
+                html += `
+                    <div class="routine-picker-item" onclick="addRoutineToTemplate('${key}')">
+                        <div>
+                            <div style="font-weight: 500;">${routine.name}</div>
+                            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <span class="task-tag tag-${routine.category}" style="font-size: 0.7rem;">${routine.category}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-lighter);">⏱️ ${routine.time}</span>
+                            </div>
+                        </div>
+                        <span style="font-size: 1.2rem; color: var(--primary);">+</span>
+                    </div>
+                `;
+            }
+            
+            if (!html) {
+                html = '<p style="text-align: center; color: var(--text-lighter); padding: 20px;">No routines match your search</p>';
+            }
+            
+            document.getElementById('routine-picker-list').innerHTML = html;
+        }
+
+        function filterRoutinePicker() {
+            const search = document.getElementById('template-routine-search').value;
+            renderRoutinePicker(search);
+        }
+
+        function addRoutineToTemplate(routineKey) {
+            if (!currentTemplateAddDay) return;
+            
+            const routine = ROUTINES_LIBRARY[routineKey];
+            const template = loadMasterTemplate();
+            
+            if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
+            if (!template[currentTemplateWeek][currentTemplateAddDay]) template[currentTemplateWeek][currentTemplateAddDay] = [];
+            
+            template[currentTemplateWeek][currentTemplateAddDay].push({
+                text: routine.name,
+                category: routine.category,
+                time: routine.time,
+                routine: routineKey
+            });
+            
+            saveMasterTemplate(template);
+            closeModal('add-template-task-modal');
+            renderTemplateView();
+        }
+
+        function addCustomTaskToTemplate() {
+            if (!currentTemplateAddDay) return;
+            
+            const name = document.getElementById('template-custom-task-name').value.trim();
+            if (!name) { alert('Please enter a task name!'); return; }
+            
+            const category = document.getElementById('template-custom-task-category').value;
+            const time = document.getElementById('template-custom-task-time').value.trim();
+            
+            const template = loadMasterTemplate();
+            if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
+            if (!template[currentTemplateWeek][currentTemplateAddDay]) template[currentTemplateWeek][currentTemplateAddDay] = [];
+            
+            template[currentTemplateWeek][currentTemplateAddDay].push({
+                text: name,
+                category: category,
+                time: time || undefined
+            });
+            
+            saveMasterTemplate(template);
+            closeModal('add-template-task-modal');
+            renderTemplateView();
+        }
+
+        function removeTemplateTask(weekNum, dayName, taskIndex) {
+            const template = loadMasterTemplate();
+            if (template[weekNum] && template[weekNum][dayName]) {
+                template[weekNum][dayName].splice(taskIndex, 1);
+                saveMasterTemplate(template);
+                renderTemplateView();
+            }
+        }
+
+        function moveTemplateTaskUp(weekNum, dayName, taskIndex) {
+            if (taskIndex === 0) return;
+            const template = loadMasterTemplate();
+            const tasks = template[weekNum][dayName];
+            [tasks[taskIndex - 1], tasks[taskIndex]] = [tasks[taskIndex], tasks[taskIndex - 1]];
+            saveMasterTemplate(template);
+            renderTemplateView();
+        }
+
+        function moveTemplateTaskDown(weekNum, dayName, taskIndex) {
+            const template = loadMasterTemplate();
+            const tasks = template[weekNum][dayName];
+            if (taskIndex >= tasks.length - 1) return;
+            [tasks[taskIndex], tasks[taskIndex + 1]] = [tasks[taskIndex + 1], tasks[taskIndex]];
+            saveMasterTemplate(template);
+            renderTemplateView();
+        }
+
+        function editTemplateTask(weekNum, dayName, taskIndex) {
+            const template = loadMasterTemplate();
+            const task = template[weekNum][dayName][taskIndex];
+            if (!task) return;
+            
+            currentTemplateEditTask = { weekNum, dayName, taskIndex };
+            document.getElementById('edit-template-task-name').value = task.text;
+            document.getElementById('edit-template-task-category').value = task.category;
+            document.getElementById('edit-template-task-time').value = task.time || '';
+            
+            document.getElementById('edit-template-task-modal').classList.add('active');
+        }
+
+        function saveTemplateTaskEdit() {
+            if (!currentTemplateEditTask) return;
+            const { weekNum, dayName, taskIndex } = currentTemplateEditTask;
+            
+            const template = loadMasterTemplate();
+            const task = template[weekNum][dayName][taskIndex];
+            
+            task.text = document.getElementById('edit-template-task-name').value.trim();
+            task.category = document.getElementById('edit-template-task-category').value;
+            task.time = document.getElementById('edit-template-task-time').value.trim() || undefined;
+            
+            saveMasterTemplate(template);
+            closeModal('edit-template-task-modal');
+            renderTemplateView();
+        }
+
+        function copyWeekTemplate() {
+            const template = loadMasterTemplate();
+            copiedWeekData = JSON.parse(JSON.stringify(template[currentTemplateWeek] || {}));
+            alert(`✅ Week ${currentTemplateWeek} copied!`);
+        }
+
+        function pasteWeekTemplate() {
+            if (!copiedWeekData) {
+                alert('Nothing copied yet! Copy a week first.');
+                return;
+            }
+            if (!confirm(`Paste copied tasks to Week ${currentTemplateWeek}? This will ADD to existing tasks.`)) return;
+            
+            const template = loadMasterTemplate();
+            if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
+            
+            for (const dayName of DAY_NAMES_ORDERED) {
+                if (copiedWeekData[dayName] && copiedWeekData[dayName].length > 0) {
+                    if (!template[currentTemplateWeek][dayName]) template[currentTemplateWeek][dayName] = [];
+                    template[currentTemplateWeek][dayName].push(...JSON.parse(JSON.stringify(copiedWeekData[dayName])));
+                }
+            }
+            
+            saveMasterTemplate(template);
+            renderTemplateView();
+            alert(`✅ Tasks pasted to Week ${currentTemplateWeek}!`);
+        }
+
+        function openAddRoutineToTemplateModal(routineKey) {
+            const routine = ROUTINES_LIBRARY[routineKey];
+            if (!routine) return;
+            
+            // Build a quick modal to choose week + day
+            let html = '<div style="margin-bottom: 15px;">';
+            html += '<div class="form-group"><label class="form-label">Which week?</label>';
+            html += '<select class="form-select" id="routine-to-template-week">';
+            for (let w = 1; w <= 4; w++) {
+                html += `<option value="${w}">Week ${w}</option>`;
+            }
+            html += '</select></div>';
+            html += '<div class="form-group"><label class="form-label">Which day(s)?</label>';
+            html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            DAY_NAMES_ORDERED.forEach(day => {
+                html += `<label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="routine-template-day-cb" value="${day}"><span>${day.charAt(0).toUpperCase() + day.slice(1)}</span></label>`;
+            });
+            html += '</div></div></div>';
+            html += `<button class="btn btn-primary" onclick="confirmAddRoutineToTemplate('${routineKey}')">Add to Template</button>`;
+            
+            // Reuse the recurring tasks modal space
+            document.getElementById('recurring-tasks-list').innerHTML = html;
+            document.getElementById('recurring-tasks-modal').querySelector('.modal-title').textContent = `Add "${routine.name}" to Template`;
+            document.getElementById('recurring-tasks-modal').classList.add('active');
+        }
+
+        function confirmAddRoutineToTemplate(routineKey) {
+            const routine = ROUTINES_LIBRARY[routineKey];
+            const weekNum = parseInt(document.getElementById('routine-to-template-week').value);
+            const selectedDays = [];
+            document.querySelectorAll('.routine-template-day-cb:checked').forEach(cb => selectedDays.push(cb.value));
+            
+            if (selectedDays.length === 0) {
+                alert('Please select at least one day!');
+                return;
+            }
+            
+            const template = loadMasterTemplate();
+            if (!template[weekNum]) template[weekNum] = {};
+            
+            selectedDays.forEach(dayName => {
+                if (!template[weekNum][dayName]) template[weekNum][dayName] = [];
+                template[weekNum][dayName].push({
+                    text: routine.name,
+                    category: routine.category,
+                    time: routine.time,
+                    routine: routineKey
+                });
+            });
+            
+            saveMasterTemplate(template);
+            closeModal('recurring-tasks-modal');
+            alert(`✅ Added "${routine.name}" to Week ${weekNum} (${selectedDays.length} day${selectedDays.length > 1 ? 's' : ''})!`);
+        }
+
+        function clearWeekTemplate() {
+            if (!confirm(`Clear ALL tasks from Week ${currentTemplateWeek}? This cannot be undone.`)) return;
+            
+            const template = loadMasterTemplate();
+            template[currentTemplateWeek] = {};
+            saveMasterTemplate(template);
+            renderTemplateView();
+            alert(`✅ Week ${currentTemplateWeek} cleared!`);
+        }
+
     function init() {
         // Check if we're in test mode
             if (window.location.hash === '#test') {
