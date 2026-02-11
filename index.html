@@ -1743,7 +1743,7 @@
 
         // 4-WEEK ROTATING TEMPLATE SYSTEM
         // Anchor: Sunday Feb 15, 2026 = Week 1, Day 1
-        const TEMPLATE_ANCHOR = '2026-02-15'; // Sunday Feb 15, 2026
+        const TEMPLATE_ANCHOR = '2026-02-09'; // Monday Feb 9, 2026
         const DAY_NAMES_ORDERED = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
         function getWeekNumber(date) {
@@ -1805,8 +1805,9 @@
         function getWeekStart(date = new Date()) {
             const d = new Date(date);
             d.setHours(0, 0, 0, 0);
-            const day = d.getDay(); // 0=Sunday
-            d.setDate(d.getDate() - day); // Go back to Sunday
+            const day = d.getDay(); // 0=Sunday, 1=Monday, ...
+            const diff = day === 0 ? 6 : day - 1; // Go back to Monday
+            d.setDate(d.getDate() - diff);
             return d;
         }
         
@@ -1834,7 +1835,7 @@
             for (let i = 0; i < 7; i++) {
                 const dayDate = new Date(weekStart);
                 dayDate.setDate(weekStart.getDate() + i);
-                const dayName = getDayName(i);
+                const dayName = getDayName(dayDate.getDay());
                 const dateKey = formatDate(dayDate);
                 
                 // Start with master template tasks for this week number + day
@@ -2004,7 +2005,7 @@
                 dayDate.setDate(weekStart.getDate() + i);
                 const key = formatDate(dayDate);
                 if (key !== dateKey) {
-                    const dayName = getDayName(i);
+                    const dayName = getDayName(dayDate.getDay());
                     select.innerHTML += `<option value="${key}">${dayName.charAt(0).toUpperCase() + dayName.slice(1)} - ${formatShortDate(dayDate)}</option>`;
                 }
             }
@@ -3640,14 +3641,15 @@ function editCaptureAssignment(itemId) {
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             
-            // Get day of week for first day (0 = Sunday)
-            const firstDayOfWeek = firstDay.getDay();
+            // Get day of week for first day (0 = Sunday), adjusted for Monday start
+            const firstDayRaw = firstDay.getDay();
+            const firstDayOfWeek = firstDayRaw === 0 ? 6 : firstDayRaw - 1; // Monday=0, Sunday=6
             
             // Build calendar
             let html = '<div class="calendar-grid">';
             
             // Day headers
-            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
             dayHeaders.forEach(day => {
                 html += `<div class="calendar-day-header">${day}</div>`;
             });
@@ -5851,33 +5853,39 @@ async function testEditAssignmentMovesTask() {
         // ============================================
 
         async function testWeekStartsSunday() {
-            // Feb 15, 2026 is a Sunday - getWeekStart should return it unchanged
-            const sunday = parseLocalDate('2026-02-15');
-            const weekStart = getWeekStart(sunday);
-            const isSunday = weekStart.getDay() === 0;
+            // Week now starts on Monday
+            // Feb 16, 2026 is a Monday - getWeekStart should return it unchanged
+            const monday = parseLocalDate('2026-02-16');
+            const weekStart = getWeekStart(monday);
+            const isMonday = weekStart.getDay() === 1;
             
-            // Also test a mid-week date
+            // Also test a mid-week date: Wednesday Feb 18 → should go back to Monday Feb 16
             const wednesday = parseLocalDate('2026-02-18');
             const wedWeekStart = getWeekStart(wednesday);
-            const wedStartIsSunday = wedWeekStart.getDay() === 0;
+            const wedStartIsMonday = wedWeekStart.getDay() === 1;
             const wedStartDate = formatDate(wedWeekStart);
             
-            logTest('Week starts on Sunday',
-                isSunday && wedStartIsSunday && wedStartDate === '2026-02-15',
-                isSunday && wedStartIsSunday ? '' : `Got day ${weekStart.getDay()} and ${wedWeekStart.getDay()}, date ${wedStartDate}`);
+            // Test Sunday: Feb 15 (Sunday) → should go back to Monday Feb 9
+            const sunday = parseLocalDate('2026-02-15');
+            const sunWeekStart = getWeekStart(sunday);
+            const sunStartDate = formatDate(sunWeekStart);
+            
+            logTest('Week starts on Monday',
+                isMonday && wedStartIsMonday && wedStartDate === '2026-02-16' && sunStartDate === '2026-02-09',
+                `Mon: day=${weekStart.getDay()}, Wed→${wedStartDate}, Sun→${sunStartDate}`);
         }
 
         async function testWeekNumberCalculation() {
-            // Anchor: Feb 15, 2026 = Week 1
-            // Feb 22 = Week 2, Mar 1 = Week 3, Mar 8 = Week 4, Mar 15 = Week 1 again
-            const w1 = getWeekNumber(parseLocalDate('2026-02-15'));
-            const w2 = getWeekNumber(parseLocalDate('2026-02-22'));
-            const w3 = getWeekNumber(parseLocalDate('2026-03-01'));
-            const w4 = getWeekNumber(parseLocalDate('2026-03-08'));
-            const w1again = getWeekNumber(parseLocalDate('2026-03-15'));
+            // Anchor: Feb 9, 2026 (Monday) = Week 1
+            // Feb 16 = Week 2, Feb 23 = Week 3, Mar 2 = Week 4, Mar 9 = Week 1 again
+            const w1 = getWeekNumber(parseLocalDate('2026-02-09'));
+            const w2 = getWeekNumber(parseLocalDate('2026-02-16'));
+            const w3 = getWeekNumber(parseLocalDate('2026-02-23'));
+            const w4 = getWeekNumber(parseLocalDate('2026-03-02'));
+            const w1again = getWeekNumber(parseLocalDate('2026-03-09'));
             
             // Also test dates before anchor
-            const wBefore = getWeekNumber(parseLocalDate('2026-02-08'));
+            const wBefore = getWeekNumber(parseLocalDate('2026-02-02'));
             const wBeforeValid = wBefore >= 1 && wBefore <= 4;
             
             logTest('Week number calculation (4-week rotation)',
