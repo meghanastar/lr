@@ -9415,31 +9415,21 @@ async function testEditAssignmentMovesTask() {
         }
 
         async function testDragHandleHiddenDesktopCSS() {
-            // Check that .drag-handle has display:none by default (desktop)
-            const handle = document.querySelector('.drag-handle');
-            if (handle) {
-                const style = window.getComputedStyle(handle);
-                const hidden = style.display === 'none';
-                logTest('Drag handle hidden on desktop via CSS',
-                    hidden,
-                    `display: ${style.display}`);
-            } else {
-                // If no handle rendered yet, check the stylesheet
-                const sheets = document.styleSheets;
-                let foundRule = false;
-                for (const sheet of sheets) {
-                    try {
-                        for (const rule of sheet.cssRules) {
-                            if (rule.selectorText === '.drag-handle' && rule.style.display === 'none') {
-                                foundRule = true;
-                            }
+            // Check that .drag-handle has display:none in the base CSS (not media query)
+            const sheets = document.styleSheets;
+            let foundHiddenRule = false;
+            for (const sheet of sheets) {
+                try {
+                    for (const rule of sheet.cssRules) {
+                        if (rule.selectorText === '.drag-handle' && rule.style.display === 'none') {
+                            foundHiddenRule = true;
                         }
-                    } catch(e) {}
-                }
-                logTest('Drag handle hidden on desktop via CSS',
-                    foundRule,
-                    foundRule ? 'CSS rule found' : 'No matching CSS rule');
+                    }
+                } catch(e) {}
             }
+            logTest('Drag handle hidden on desktop via CSS',
+                foundHiddenRule,
+                foundHiddenRule ? 'CSS rule display:none found' : 'No matching CSS rule');
         }
 
         async function testReorderSingleTaskNoOp() {
