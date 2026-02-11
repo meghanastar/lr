@@ -3313,10 +3313,10 @@ function confirmAssignCaptureItem() {
                 updatedTask && updatedTask.text === 'Updated Test Item' && updatedTask.category === 'skincare');
         }
 
-        async function testEditAssignmentMovesTask() {
+async function testEditAssignmentMovesTask() {
             // Create new test item
             const testId = Date.now() + 1000;
-            const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const newItem = {
                 id: testId,
                 text: 'Move Test ' + testId,
@@ -3324,65 +3324,82 @@ function confirmAssignCaptureItem() {
                 time: '10 min',
                 status: 'unassigned',
                 assignedTo: null,
-                fromCapture: true
+                fromCapture: true,
+                createdAt: new Date().toISOString(),
+                completedAt: null
             };
             captureList.push(newItem);
             testItemIds.push(testId);
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
             
-            // Assign to tomorrow
+            // Assign to tomorrow using the REAL function
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const dateKey1 = formatDate(tomorrow);
+            
+            // Simulate assignment
+            currentAssignItemId = testId;
+            document.getElementById('assign-date').value = dateKey1;
+            document.getElementById('assign-time').value = '';
+            
+            // Call the actual function
+            confirmAssignCaptureItem();
+            
+            // Wait for updates
+            await sleep(50);
+            
+            // Verify it's assigned to tomorrow
+            captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === testId);
+            
+            if (!item || !item.assignedTo || item.assignedTo.dateKey !== dateKey1) {
+                logTest('Edit assignment moves task', false, 'Initial assignment failed');
+                return;
+            }
+            
             const weekStart1 = getWeekStart(tomorrow);
             const weekKey1 = getWeekKey(weekStart1);
-            let weekData1 = loadData(weekKey1) || generateWeekData(weekStart1);
+            let weekData1 = loadData(weekKey1);
+            const taskInTomorrow = weekData1[dateKey1].tasks.find(t => t.captureItemId === testId);
             
-            const taskId = Date.now();
-            weekData1[dateKey1].tasks.push({
-                id: taskId,
-                text: newItem.text,
-                category: newItem.category,
-                completed: false,
-                fromCapture: true,
-                captureItemId: testId
-            });
-            saveData(weekKey1, weekData1);
+            if (!taskInTomorrow) {
+                logTest('Edit assignment moves task', false, 'Task not found in tomorrow');
+                return;
+            }
             
-            newItem.status = 'assigned';
-            newItem.assignedTo = { dateKey: dateKey1, weekKey: weekKey1, taskId };
-            localStorage.setItem('capture-list', JSON.stringify(captureList));
-            
-            // Move to day after tomorrow
+            // Now EDIT the assignment to move it to day after tomorrow
             const dayAfter = new Date();
             dayAfter.setDate(dayAfter.getDate() + 2);
             const dateKey2 = formatDate(dayAfter);
+            
+            // Simulate editing (item already has assignedTo, so it will detect edit mode)
+            currentAssignItemId = testId;
+            document.getElementById('assign-date').value = dateKey2;
+            document.getElementById('assign-time').value = '';
+            
+            // Call the actual function again (should detect edit mode and move task)
+            confirmAssignCaptureItem();
+            
+            // Wait for updates
+            await sleep(50);
+            
+            // Check if moved: should be gone from tomorrow, present in day after
+            weekData1 = loadData(weekKey1);
             const weekStart2 = getWeekStart(dayAfter);
             const weekKey2 = getWeekKey(weekStart2);
-            let weekData2 = loadData(weekKey2) || generateWeekData(weekStart2);
+            const weekData2 = loadData(weekKey2);
             
-            // Remove from old location
-            weekData1 = loadData(weekKey1);
-            weekData1[dateKey1].tasks = weekData1[dateKey1].tasks.filter(t => t.captureItemId !== testId);
-            saveData(weekKey1, weekData1);
-            
-            // Add to new location
-            weekData2[dateKey2].tasks.push({
-                id: Date.now(),
-                text: newItem.text,
-                category: newItem.category,
-                completed: false,
-                fromCapture: true,
-                captureItemId: testId
-            });
-            saveData(weekKey2, weekData2);
-            
-            // Check if moved
-            weekData1 = loadData(weekKey1);
-            weekData2 = loadData(weekKey2);
             const notInOld = !weekData1[dateKey1].tasks.find(t => t.captureItemId === testId);
-            const inNew = !!weekData2[dateKey2].tasks.find(t => t.captureItemId === testId);
+            const inNew = weekData2 && weekData2[dateKey2] && !!weekData2[dateKey2].tasks.find(t => t.captureItemId === testId);
             
-            logTest('Edit assignment moves task', notInOld && inNew);
+            // Check capture item updated
+            captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const updatedItem = captureList.find(i => i.id === testId);
+            const captureUpdated = updatedItem.assignedTo.dateKey === dateKey2;
+            
+            logTest('Edit assignment moves task', 
+                notInOld && inNew && captureUpdated,
+                notInOld && inNew && captureUpdated ? '' : `Old: ${!notInOld}, New: ${!inNew}, Capture: ${!captureUpdated}`);
         }
 
         async function testDeleteScenario1() {
