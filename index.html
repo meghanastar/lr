@@ -3321,7 +3321,7 @@ function editCaptureAssignment(itemId) {
             document.getElementById('test-summary').innerHTML = '⏳ Running tests...';
             document.getElementById('test-details').innerHTML = '';
             
-            console.log('🧪 Starting Capture List Test Suite...');
+            console.log('🧪 Starting Full Test Suite...');
             
             // Give UI time to update
             await sleep(100);
@@ -3349,6 +3349,22 @@ function editCaptureAssignment(itemId) {
             await testPriorityDisplay();
             await testSpecialCharacters();
             await testSimultaneousEdits();
+            
+            // Template Editor Tests
+            await testWeekStartsSunday();
+            await testWeekNumberCalculation();
+            await testEmptyTemplateGeneratesEmptyWeek();
+            await testAddTaskToTemplate();
+            await testAddRoutineToTemplate();
+            await testRemoveTaskFromTemplate();
+            await testEditTemplateTask();
+            await testMoveTemplateTaskOrder();
+            await testCopyPasteWeek();
+            await testClearWeekTemplate();
+            await testTemplateGeneratesCorrectWeek();
+            await test4WeekRotation();
+            await testExpandedRoutinesLibrary();
+            await testTemplateDoesNotAffectExistingWeeks();
             
             // Display results
             displayTestResults();
@@ -4275,6 +4291,450 @@ async function testEditAssignmentMovesTask() {
                 'Last write wins - may cause desync if multiple tabs open');
         }
         
+
+        // ============================================
+        // TEMPLATE EDITOR TESTS
+        // ============================================
+
+        async function testWeekStartsSunday() {
+            // Feb 15, 2026 is a Sunday - getWeekStart should return it unchanged
+            const sunday = parseLocalDate('2026-02-15');
+            const weekStart = getWeekStart(sunday);
+            const isSunday = weekStart.getDay() === 0;
+            
+            // Also test a mid-week date
+            const wednesday = parseLocalDate('2026-02-18');
+            const wedWeekStart = getWeekStart(wednesday);
+            const wedStartIsSunday = wedWeekStart.getDay() === 0;
+            const wedStartDate = formatDate(wedWeekStart);
+            
+            logTest('Week starts on Sunday',
+                isSunday && wedStartIsSunday && wedStartDate === '2026-02-15',
+                isSunday && wedStartIsSunday ? '' : `Got day ${weekStart.getDay()} and ${wedWeekStart.getDay()}, date ${wedStartDate}`);
+        }
+
+        async function testWeekNumberCalculation() {
+            // Anchor: Feb 15, 2026 = Week 1
+            // Feb 22 = Week 2, Mar 1 = Week 3, Mar 8 = Week 4, Mar 15 = Week 1 again
+            const w1 = getWeekNumber(parseLocalDate('2026-02-15'));
+            const w2 = getWeekNumber(parseLocalDate('2026-02-22'));
+            const w3 = getWeekNumber(parseLocalDate('2026-03-01'));
+            const w4 = getWeekNumber(parseLocalDate('2026-03-08'));
+            const w1again = getWeekNumber(parseLocalDate('2026-03-15'));
+            
+            // Also test dates before anchor
+            const wBefore = getWeekNumber(parseLocalDate('2026-02-08'));
+            const wBeforeValid = wBefore >= 1 && wBefore <= 4;
+            
+            logTest('Week number calculation (4-week rotation)',
+                w1 === 1 && w2 === 2 && w3 === 3 && w4 === 4 && w1again === 1 && wBeforeValid,
+                `W1=${w1}, W2=${w2}, W3=${w3}, W4=${w4}, W1again=${w1again}, Before=${wBefore}`);
+        }
+
+        async function testEmptyTemplateGeneratesEmptyWeek() {
+            // Save current template, set it to empty, generate a future week
+            const savedTemplate = loadData('master-template');
+            
+            // Use an empty template
+            saveMasterTemplate({ 1: {}, 2: {}, 3: {}, 4: {} });
+            
+            // Pick a future date far enough away that no week data exists
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 90);
+            const futureWeekStart = getWeekStart(futureDate);
+            const futureWeekKey = getWeekKey(futureWeekStart);
+            
+            // Remove any existing week data for this week
+            localStorage.removeItem(futureWeekKey);
+            
+            // Generate it
+            const weekData = generateWeekData(futureWeekStart);
+            
+            // Check all days have 0 template tasks (may have recurring tasks)
+            let allEmpty = true;
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(futureWeekStart);
+                dayDate.setDate(futureWeekStart.getDate() + i);
+                const dateKey = formatDate(dayDate);
+                const dayTasks = weekData[dateKey].tasks.filter(t => !t.recurringId);
+                if (dayTasks.length > 0) allEmpty = false;
+            }
+            
+            // Clean up
+            localStorage.removeItem(futureWeekKey);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Empty template generates empty week',
+                allEmpty,
+                allEmpty ? 'No template tasks in generated week' : 'Unexpected tasks found');
+        }
+
+        async function testAddTaskToTemplate() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            if (!template[1]['monday']) template[1]['monday'] = [];
+            
+            const initialCount = template[1]['monday'].length;
+            
+            template[1]['monday'].push({
+                text: 'Test Task Template',
+                category: 'cleaning',
+                time: '10 min'
+            });
+            saveMasterTemplate(template);
+            
+            // Reload and verify
+            const reloaded = loadMasterTemplate();
+            const newCount = reloaded[1]['monday'].length;
+            const found = reloaded[1]['monday'].find(t => t.text === 'Test Task Template');
+            
+            // Clean up
+            reloaded[1]['monday'] = reloaded[1]['monday'].filter(t => t.text !== 'Test Task Template');
+            saveMasterTemplate(reloaded);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            
+            logTest('Add task to template',
+                newCount === initialCount + 1 && !!found,
+                found ? '' : 'Task not found after adding');
+        }
+
+        async function testAddRoutineToTemplate() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[2]) template[2] = {};
+            if (!template[2]['wednesday']) template[2]['wednesday'] = [];
+            
+            // Add a routine from the library
+            const routine = ROUTINES_LIBRARY['retinol'];
+            template[2]['wednesday'].push({
+                text: routine.name,
+                category: routine.category,
+                time: routine.time,
+                routine: 'retinol'
+            });
+            saveMasterTemplate(template);
+            
+            const reloaded = loadMasterTemplate();
+            const found = reloaded[2]['wednesday'].find(t => t.routine === 'retinol');
+            
+            // Clean up
+            reloaded[2]['wednesday'] = reloaded[2]['wednesday'].filter(t => t.routine !== 'retinol');
+            saveMasterTemplate(reloaded);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            
+            logTest('Add routine to template',
+                !!found && found.text === 'Retinol Night Routine',
+                found ? '' : 'Routine not found in template');
+        }
+
+        async function testRemoveTaskFromTemplate() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            template[1]['tuesday'] = [
+                { text: 'Keep This', category: 'habit' },
+                { text: 'Remove This', category: 'cleaning' },
+                { text: 'Also Keep', category: 'skincare' }
+            ];
+            saveMasterTemplate(template);
+            
+            // Remove index 1
+            const t2 = loadMasterTemplate();
+            t2[1]['tuesday'].splice(1, 1);
+            saveMasterTemplate(t2);
+            
+            const reloaded = loadMasterTemplate();
+            const tasks = reloaded[1]['tuesday'];
+            const correctCount = tasks.length === 2;
+            const removed = !tasks.find(t => t.text === 'Remove This');
+            const kept1 = !!tasks.find(t => t.text === 'Keep This');
+            const kept2 = !!tasks.find(t => t.text === 'Also Keep');
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Remove task from template',
+                correctCount && removed && kept1 && kept2,
+                correctCount && removed ? '' : `Count: ${tasks.length}, removed: ${removed}`);
+        }
+
+        async function testEditTemplateTask() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[3]) template[3] = {};
+            template[3]['friday'] = [
+                { text: 'Original Name', category: 'habit', time: '5 min' }
+            ];
+            saveMasterTemplate(template);
+            
+            // Edit it
+            const t2 = loadMasterTemplate();
+            t2[3]['friday'][0].text = 'Edited Name';
+            t2[3]['friday'][0].category = 'skincare';
+            t2[3]['friday'][0].time = '20 min';
+            saveMasterTemplate(t2);
+            
+            const reloaded = loadMasterTemplate();
+            const task = reloaded[3]['friday'][0];
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Edit template task',
+                task.text === 'Edited Name' && task.category === 'skincare' && task.time === '20 min',
+                `Got: "${task.text}", ${task.category}, ${task.time}`);
+        }
+
+        async function testMoveTemplateTaskOrder() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            template[1]['thursday'] = [
+                { text: 'First', category: 'habit' },
+                { text: 'Second', category: 'cleaning' },
+                { text: 'Third', category: 'skincare' }
+            ];
+            saveMasterTemplate(template);
+            
+            // Move "Second" up (swap index 0 and 1)
+            const t2 = loadMasterTemplate();
+            const tasks = t2[1]['thursday'];
+            [tasks[0], tasks[1]] = [tasks[1], tasks[0]];
+            saveMasterTemplate(t2);
+            
+            const reloaded = loadMasterTemplate();
+            const result = reloaded[1]['thursday'];
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Move template task order',
+                result[0].text === 'Second' && result[1].text === 'First' && result[2].text === 'Third',
+                `Order: ${result.map(t => t.text).join(', ')}`);
+        }
+
+        async function testCopyPasteWeek() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            if (!template[1]) template[1] = {};
+            template[1]['sunday'] = [{ text: 'Copy Test', category: 'habit', time: '5 min' }];
+            template[1]['monday'] = [{ text: 'Copy Test 2', category: 'cleaning' }];
+            if (!template[2]) template[2] = {};
+            template[2]['sunday'] = [];
+            template[2]['monday'] = [];
+            saveMasterTemplate(template);
+            
+            // Copy week 1
+            const week1 = JSON.parse(JSON.stringify(template[1]));
+            
+            // Paste to week 2 (add mode)
+            const t2 = loadMasterTemplate();
+            for (const dayName of DAY_NAMES_ORDERED) {
+                if (week1[dayName] && week1[dayName].length > 0) {
+                    if (!t2[2][dayName]) t2[2][dayName] = [];
+                    t2[2][dayName].push(...JSON.parse(JSON.stringify(week1[dayName])));
+                }
+            }
+            saveMasterTemplate(t2);
+            
+            const reloaded = loadMasterTemplate();
+            const sun2 = reloaded[2]['sunday'] || [];
+            const mon2 = reloaded[2]['monday'] || [];
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Copy and paste week',
+                sun2.find(t => t.text === 'Copy Test') && mon2.find(t => t.text === 'Copy Test 2'),
+                `Sunday: ${sun2.length} tasks, Monday: ${mon2.length} tasks`);
+        }
+
+        async function testClearWeekTemplate() {
+            const savedTemplate = loadData('master-template');
+            
+            const template = loadMasterTemplate();
+            template[4] = {
+                'sunday': [{ text: 'Clear me', category: 'habit' }],
+                'monday': [{ text: 'Clear me too', category: 'cleaning' }]
+            };
+            saveMasterTemplate(template);
+            
+            // Clear week 4
+            const t2 = loadMasterTemplate();
+            t2[4] = {};
+            saveMasterTemplate(t2);
+            
+            const reloaded = loadMasterTemplate();
+            const week4 = reloaded[4];
+            const isEmpty = !week4 || Object.keys(week4).length === 0 || 
+                DAY_NAMES_ORDERED.every(d => !week4[d] || week4[d].length === 0);
+            
+            // Clean up
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Clear week template',
+                isEmpty,
+                isEmpty ? '' : `Week 4 still has data: ${JSON.stringify(week4)}`);
+        }
+
+        async function testTemplateGeneratesCorrectWeek() {
+            const savedTemplate = loadData('master-template');
+            
+            // Set up template with known tasks
+            const testTemplate = { 1: {}, 2: {}, 3: {}, 4: {} };
+            testTemplate[1]['sunday'] = [{ text: 'Week1 Sunday', category: 'habit', time: '5 min' }];
+            testTemplate[2]['sunday'] = [{ text: 'Week2 Sunday', category: 'cleaning' }];
+            saveMasterTemplate(testTemplate);
+            
+            // The anchor is Feb 15, 2026 (Week 1 Sunday)
+            // Generate week starting Feb 15
+            const week1Start = parseLocalDate('2026-02-15');
+            const week1Key = getWeekKey(week1Start);
+            localStorage.removeItem(week1Key);
+            
+            const week1Data = generateWeekData(week1Start);
+            const sundayKey = '2026-02-15';
+            const sundayTasks = week1Data[sundayKey].tasks.filter(t => !t.recurringId);
+            
+            // Generate week starting Feb 22 (Week 2)
+            const week2Start = parseLocalDate('2026-02-22');
+            const week2Key = getWeekKey(week2Start);
+            localStorage.removeItem(week2Key);
+            
+            const week2Data = generateWeekData(week2Start);
+            const sunday2Key = '2026-02-22';
+            const sunday2Tasks = week2Data[sunday2Key].tasks.filter(t => !t.recurringId);
+            
+            const w1Correct = sundayTasks.length === 1 && sundayTasks[0].text === 'Week1 Sunday';
+            const w2Correct = sunday2Tasks.length === 1 && sunday2Tasks[0].text === 'Week2 Sunday';
+            
+            // Clean up
+            localStorage.removeItem(week1Key);
+            localStorage.removeItem(week2Key);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Template generates correct week',
+                w1Correct && w2Correct,
+                `W1: ${sundayTasks.map(t=>t.text)}, W2: ${sunday2Tasks.map(t=>t.text)}`);
+        }
+
+        async function test4WeekRotation() {
+            const savedTemplate = loadData('master-template');
+            
+            // Each week gets a unique task on Monday
+            const testTemplate = { 1: {}, 2: {}, 3: {}, 4: {} };
+            testTemplate[1]['monday'] = [{ text: 'W1-Monday', category: 'habit' }];
+            testTemplate[2]['monday'] = [{ text: 'W2-Monday', category: 'cleaning' }];
+            testTemplate[3]['monday'] = [{ text: 'W3-Monday', category: 'skincare' }];
+            testTemplate[4]['monday'] = [{ text: 'W4-Monday', category: 'hair' }];
+            saveMasterTemplate(testTemplate);
+            
+            // Week 1 starts Feb 15 (Sun), so Monday = Feb 16
+            // Week 5 starts Mar 15 (Sun), so Monday = Mar 16 - should be Week 1 again
+            const week5Start = parseLocalDate('2026-03-15');
+            const week5Key = getWeekKey(week5Start);
+            localStorage.removeItem(week5Key);
+            
+            const week5Data = generateWeekData(week5Start);
+            const mondayKey = '2026-03-16';
+            const mondayTasks = week5Data[mondayKey].tasks.filter(t => !t.recurringId);
+            
+            const rotatesCorrectly = mondayTasks.length === 1 && mondayTasks[0].text === 'W1-Monday';
+            
+            // Clean up
+            localStorage.removeItem(week5Key);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('4-week rotation cycles back to Week 1',
+                rotatesCorrectly,
+                `Week 5 Monday got: "${mondayTasks.map(t=>t.text)}"`);
+        }
+
+        async function testExpandedRoutinesLibrary() {
+            // Check that the expanded routines library has the key routines
+            const expectedRoutines = [
+                'make-bed', 'dishes', 'retinol', 'vitamin-c', 'hair-wash',
+                'blowout', 'scalp-refresh', 'shave-day', 'merino-wool',
+                'post-trip-intense', 'post-hosting', 'wash-brushes',
+                'bathroom-deep', 'kitchen-deep', 'dusting', 'gift-unwrap'
+            ];
+            
+            let allFound = true;
+            const missing = [];
+            expectedRoutines.forEach(key => {
+                if (!ROUTINES_LIBRARY[key]) {
+                    allFound = false;
+                    missing.push(key);
+                }
+            });
+            
+            const totalCount = Object.keys(ROUTINES_LIBRARY).length;
+            
+            logTest('Expanded routines library (39 routines)',
+                allFound && totalCount >= 35,
+                allFound ? `${totalCount} routines loaded` : `Missing: ${missing.join(', ')}`);
+        }
+
+        async function testTemplateDoesNotAffectExistingWeeks() {
+            const savedTemplate = loadData('master-template');
+            
+            // Generate a week with empty template
+            saveMasterTemplate({ 1: {}, 2: {}, 3: {}, 4: {} });
+            
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 120);
+            const weekStart = getWeekStart(futureDate);
+            const weekKey = getWeekKey(weekStart);
+            localStorage.removeItem(weekKey);
+            
+            const weekData = generateWeekData(weekStart);
+            const firstDay = formatDate(weekStart);
+            const initialTaskCount = weekData[firstDay].tasks.length;
+            
+            // Now add tasks to template
+            const weekNum = getWeekNumber(weekStart);
+            const dayName = getDayName(0); // Sunday
+            const template = loadMasterTemplate();
+            if (!template[weekNum]) template[weekNum] = {};
+            template[weekNum][dayName] = [
+                { text: 'New Template Task', category: 'habit' },
+                { text: 'Another New Task', category: 'cleaning' }
+            ];
+            saveMasterTemplate(template);
+            
+            // The already-generated week should NOT change
+            const reloadedWeek = loadData(weekKey);
+            const afterTaskCount = reloadedWeek[firstDay].tasks.length;
+            
+            // But a NEW generation (delete and regenerate) SHOULD have the new tasks
+            localStorage.removeItem(weekKey);
+            const freshWeek = generateWeekData(weekStart);
+            const freshTasks = freshWeek[firstDay].tasks.filter(t => !t.recurringId);
+            
+            // Clean up
+            localStorage.removeItem(weekKey);
+            if (savedTemplate) saveData('master-template', savedTemplate);
+            else localStorage.removeItem('master-template');
+            
+            logTest('Template does not affect existing generated weeks',
+                initialTaskCount === afterTaskCount && freshTasks.length === 2,
+                `Existing: ${initialTaskCount}→${afterTaskCount}, Fresh: ${freshTasks.length} tasks`);
+        }
 
         // ============================================
         // MASTER TEMPLATE EDITOR
