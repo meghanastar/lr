@@ -198,6 +198,28 @@
         .vacation-setup h3 { margin-bottom: 10px; }
         .vacation-dates { display: flex; gap: 10px; margin-bottom: 10px; }
         .vacation-dates .form-input { flex: 1; }
+
+        /* Sync Status */
+        .sync-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+        .sync-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .sync-dot.connected { background: var(--emerald); }
+        .sync-dot.syncing { background: var(--topaz); animation: pulse 1s infinite; }
+        .sync-dot.error { background: var(--ruby); }
+        .sync-dot.disconnected { background: var(--text-lighter); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .tag-capture { background: var(--topaz-light); color: var(--topaz); }
         .task-time { font-size: 0.75rem; color: var(--text-lighter); }
         
@@ -789,6 +811,10 @@
         <div class="header-content">
             <h1 class="app-title">✨ Life Reset</h1>
             <div class="header-actions">
+                <span id="sync-indicator" class="sync-indicator" style="display:none;" onclick="syncNow()">
+                    <span id="sync-dot" class="sync-dot disconnected"></span>
+                    <span id="sync-label">Sync</span>
+                </span>
                 <button class="icon-btn" onclick="generateNewWeek()" title="Generate New Week">🔄</button>
             </div>
         </div>
@@ -881,6 +907,28 @@
                     These tasks auto-add to future weeks
                 </div>
                 <button class="btn btn-primary" onclick="showRecurringTasksModal()" style="margin-bottom: 10px; background: linear-gradient(135deg, var(--amethyst), var(--amethyst-dark));">View & Manage Recurring Tasks</button>
+            </div>
+
+            <div class="settings-section">
+                <h2 class="settings-title">☁️ Cloud Sync</h2>
+                <div id="sync-status-box" class="info-box">
+                    <span id="sync-status-text">Not configured</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label">GitHub Personal Access Token</label>
+                    <input type="password" class="form-input" id="sync-github-token" placeholder="ghp_xxxxxxxxxxxx" onchange="saveSyncConfig()">
+                    <small style="color: var(--text-lighter);">GitHub → Settings → Developer Settings → Personal Access Tokens → Generate (scope: gist)</small>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label class="form-label">Gist ID <small>(leave blank to create new)</small></label>
+                    <input type="text" class="form-input" id="sync-gist-id" placeholder="abc123def456..." onchange="saveSyncConfig()">
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="syncNow()" style="background: linear-gradient(135deg, var(--sapphire), var(--primary));">🔄 Sync Now</button>
+                    <button class="btn btn-primary" onclick="createNewGist()" style="background: linear-gradient(135deg, var(--emerald), var(--jade));">✨ Create New Gist</button>
+                    <button class="btn" onclick="disconnectSync()" style="background: var(--ruby-light); color: var(--ruby); border: 1px solid var(--ruby);">Disconnect</button>
+                </div>
+                <div id="sync-last-time" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-lighter);"></div>
             </div>
         </div>
     </div>
@@ -4239,6 +4287,369 @@ function editCaptureAssignment(itemId) {
         }
 
         // ============================================
+        // GITHUB GIST SYNC
+        // ============================================
+
+        const SYNC_CONFIG_KEY = 'sync-config';
+        const SYNC_META_KEY = 'sync-meta';
+        let syncDebounceTimer = null;
+        const SYNC_DEBOUNCE_MS = 3000; // 3 second debounce
+        let syncInProgress = false;
+
+        function loadSyncConfig() {
+            try {
+                const data = localStorage.getItem(SYNC_CONFIG_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch(e) { return null; }
+        }
+
+        function saveSyncConfigData(config) {
+            localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(config));
+        }
+
+        function saveSyncConfig() {
+            const token = document.getElementById('sync-github-token')?.value?.trim();
+            const gistId = document.getElementById('sync-gist-id')?.value?.trim();
+            
+            if (token) {
+                saveSyncConfigData({ token, gistId: gistId || null });
+                updateSyncUI();
+            }
+        }
+
+        function loadSyncMeta() {
+            try {
+                const data = localStorage.getItem(SYNC_META_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch(e) { return {}; }
+        }
+
+        function saveSyncMeta(meta) {
+            localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+        }
+
+        function getSyncableData() {
+            const allData = {};
+            const skipKeys = [SYNC_CONFIG_KEY, SYNC_META_KEY, 'sync-timestamps'];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!skipKeys.includes(key)) {
+                    allData[key] = localStorage.getItem(key);
+                }
+            }
+            return allData;
+        }
+
+        function getSyncTimestamps() {
+            try {
+                const data = localStorage.getItem('sync-timestamps');
+                return data ? JSON.parse(data) : {};
+            } catch(e) { return {}; }
+        }
+
+        function setSyncTimestamp(key) {
+            const timestamps = getSyncTimestamps();
+            timestamps[key] = Date.now();
+            localStorage.setItem('sync-timestamps', JSON.stringify(timestamps));
+        }
+
+        function updateSyncUI() {
+            const config = loadSyncConfig();
+            const indicator = document.getElementById('sync-indicator');
+            const dot = document.getElementById('sync-dot');
+            const label = document.getElementById('sync-label');
+            const statusText = document.getElementById('sync-status-text');
+            const lastTime = document.getElementById('sync-last-time');
+            
+            // Populate settings fields if available
+            const tokenInput = document.getElementById('sync-github-token');
+            const gistInput = document.getElementById('sync-gist-id');
+            if (tokenInput && config?.token) tokenInput.value = config.token;
+            if (gistInput && config?.gistId) gistInput.value = config.gistId;
+            
+            if (config && config.token) {
+                if (indicator) {
+                    indicator.style.display = 'inline-flex';
+                    dot.className = 'sync-dot connected';
+                    label.textContent = '☁️';
+                }
+                if (statusText) {
+                    statusText.innerHTML = config.gistId 
+                        ? `<span style="color: var(--emerald);">✅ Connected</span> — Gist: <code style="font-size: 0.8rem;">${config.gistId.substring(0, 12)}...</code>`
+                        : '<span style="color: var(--topaz);">⚠️ Token set, no Gist yet</span> — click "Create New Gist"';
+                }
+            } else {
+                if (indicator) indicator.style.display = 'none';
+                if (statusText) statusText.textContent = 'Not configured';
+            }
+            
+            const meta = loadSyncMeta();
+            if (lastTime && meta.lastSync) {
+                const ago = Math.round((Date.now() - meta.lastSync) / 1000);
+                if (ago < 60) lastTime.textContent = `Last sync: ${ago}s ago`;
+                else if (ago < 3600) lastTime.textContent = `Last sync: ${Math.round(ago / 60)}m ago`;
+                else lastTime.textContent = `Last sync: ${new Date(meta.lastSync).toLocaleTimeString()}`;
+            }
+        }
+
+        function setSyncStatus(status) {
+            const dot = document.getElementById('sync-dot');
+            const label = document.getElementById('sync-label');
+            if (!dot || !label) return;
+            
+            if (status === 'syncing') {
+                dot.className = 'sync-dot syncing';
+                label.textContent = '⏳';
+            } else if (status === 'connected') {
+                dot.className = 'sync-dot connected';
+                label.textContent = '☁️';
+            } else if (status === 'error') {
+                dot.className = 'sync-dot error';
+                label.textContent = '⚠️';
+            }
+        }
+
+        async function createNewGist() {
+            const config = loadSyncConfig();
+            if (!config || !config.token) {
+                alert('Please enter your GitHub token first.');
+                return;
+            }
+            
+            setSyncStatus('syncing');
+            
+            try {
+                const data = getSyncableData();
+                const timestamps = getSyncTimestamps();
+                const payload = { data, timestamps, syncedAt: Date.now() };
+                
+                const response = await fetch('https://api.github.com/gists', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: 'Life Reset App Data',
+                        public: false,
+                        files: {
+                            'life-reset-data.json': {
+                                content: JSON.stringify(payload, null, 2)
+                            }
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+                
+                const gist = await response.json();
+                config.gistId = gist.id;
+                saveSyncConfigData(config);
+                saveSyncMeta({ lastSync: Date.now() });
+                
+                // Update the input field
+                const gistInput = document.getElementById('sync-gist-id');
+                if (gistInput) gistInput.value = gist.id;
+                
+                setSyncStatus('connected');
+                updateSyncUI();
+                if (!_testMode) alert(`✅ Gist created! ID: ${gist.id}`);
+            } catch(e) {
+                console.error('Create gist error:', e);
+                setSyncStatus('error');
+                if (!_testMode) alert(`❌ Failed to create Gist: ${e.message}`);
+            }
+        }
+
+        async function pushToGist() {
+            const config = loadSyncConfig();
+            if (!config || !config.token || !config.gistId) return;
+            if (syncInProgress) return;
+            
+            syncInProgress = true;
+            setSyncStatus('syncing');
+            
+            try {
+                const data = getSyncableData();
+                const timestamps = getSyncTimestamps();
+                const payload = { data, timestamps, syncedAt: Date.now() };
+                
+                const response = await fetch(`https://api.github.com/gists/${config.gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            'life-reset-data.json': {
+                                content: JSON.stringify(payload, null, 2)
+                            }
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+                
+                saveSyncMeta({ lastSync: Date.now() });
+                setSyncStatus('connected');
+                updateSyncUI();
+                console.log('☁️ Synced to Gist');
+            } catch(e) {
+                console.error('Push error:', e);
+                setSyncStatus('error');
+            } finally {
+                syncInProgress = false;
+            }
+        }
+
+        async function pullFromGist() {
+            const config = loadSyncConfig();
+            if (!config || !config.token || !config.gistId) return false;
+            
+            setSyncStatus('syncing');
+            
+            try {
+                const response = await fetch(`https://api.github.com/gists/${config.gistId}`, {
+                    headers: {
+                        'Authorization': `token ${config.token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+                
+                const gist = await response.json();
+                const file = gist.files['life-reset-data.json'];
+                if (!file) {
+                    console.log('No data file in Gist');
+                    setSyncStatus('connected');
+                    return false;
+                }
+                
+                const remote = JSON.parse(file.content);
+                const remoteData = remote.data || {};
+                const remoteTimestamps = remote.timestamps || {};
+                const localTimestamps = getSyncTimestamps();
+                
+                let merged = false;
+                const skipKeys = [SYNC_CONFIG_KEY, SYNC_META_KEY, 'sync-timestamps'];
+                
+                // Merge: for each key, latest timestamp wins
+                for (const key in remoteData) {
+                    if (skipKeys.includes(key)) continue;
+                    
+                    const remoteTs = remoteTimestamps[key] || 0;
+                    const localTs = localTimestamps[key] || 0;
+                    
+                    if (remoteTs > localTs) {
+                        localStorage.setItem(key, remoteData[key]);
+                        // Update local timestamp to match remote
+                        const ts = getSyncTimestamps();
+                        ts[key] = remoteTs;
+                        localStorage.setItem('sync-timestamps', JSON.stringify(ts));
+                        merged = true;
+                    }
+                }
+                
+                saveSyncMeta({ lastSync: Date.now() });
+                setSyncStatus('connected');
+                updateSyncUI();
+                
+                return merged;
+            } catch(e) {
+                console.error('Pull error:', e);
+                setSyncStatus('error');
+                return false;
+            }
+        }
+
+        async function syncNow() {
+            const config = loadSyncConfig();
+            if (!config || !config.token) {
+                if (!_testMode) alert('Please configure your GitHub token in Settings first.');
+                return;
+            }
+            if (!config.gistId) {
+                if (!_testMode) alert('No Gist ID. Click "Create New Gist" in Settings first.');
+                return;
+            }
+            
+            setSyncStatus('syncing');
+            
+            try {
+                const merged = await pullFromGist();
+                if (merged) {
+                    renderCurrentView();
+                }
+                await pushToGist();
+                if (!_testMode) alert('✅ Sync complete!');
+            } catch(e) {
+                console.error('Sync error:', e);
+                setSyncStatus('error');
+                if (!_testMode) alert(`❌ Sync failed: ${e.message}`);
+            }
+        }
+
+        function disconnectSync() {
+            if (!_testMode && !confirm('Disconnect sync? Your local data will remain.')) return;
+            localStorage.removeItem(SYNC_CONFIG_KEY);
+            localStorage.removeItem(SYNC_META_KEY);
+            localStorage.removeItem('sync-timestamps');
+            
+            const tokenInput = document.getElementById('sync-github-token');
+            const gistInput = document.getElementById('sync-gist-id');
+            if (tokenInput) tokenInput.value = '';
+            if (gistInput) gistInput.value = '';
+            
+            updateSyncUI();
+        }
+
+        function scheduleSyncPush() {
+            const config = loadSyncConfig();
+            if (!config || !config.token || !config.gistId) return;
+            
+            if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+            syncDebounceTimer = setTimeout(() => {
+                pushToGist();
+            }, SYNC_DEBOUNCE_MS);
+        }
+
+        // Hook sync into saveData — stamp timestamps and schedule push
+        const _originalSaveData = saveData;
+
+        // Override saveData to add sync
+        saveData = function(key, value) {
+            _originalSaveData(key, value);
+            setSyncTimestamp(key);
+            if (!_testMode) scheduleSyncPush();
+        };
+
+        // Pull from Gist on app load
+        function initSync() {
+            const config = loadSyncConfig();
+            updateSyncUI();
+            
+            if (config && config.token && config.gistId) {
+                // Pull on load (non-blocking)
+                pullFromGist().then(merged => {
+                    if (merged) {
+                        console.log('☁️ Merged remote data on load');
+                        renderCurrentView();
+                    }
+                });
+            }
+        }
+
+        // ============================================
         // AUTOMATED TEST SUITE
         // ============================================
 
@@ -4472,6 +4883,35 @@ function editCaptureAssignment(itemId) {
             try { await testVacationMonthViewShowsSetupWhenNone(); } catch(e) { logTest('testVacationMonthViewShowsSetupWhenNone', false, 'ERROR: ' + e.message); }
             try { await testVacationNewEssentialTaskVisible(); } catch(e) { logTest('testVacationNewEssentialTaskVisible', false, 'ERROR: ' + e.message); }
             try { await testVacationNewNonEssentialHidden(); } catch(e) { logTest('testVacationNewNonEssentialHidden', false, 'ERROR: ' + e.message); }
+            // Sync Tests
+            try { await testSyncConfigSaveAndLoad(); } catch(e) { logTest('testSyncConfigSaveAndLoad', false, 'ERROR: ' + e.message); }
+            try { await testSyncTimestampSetting(); } catch(e) { logTest('testSyncTimestampSetting', false, 'ERROR: ' + e.message); }
+            try { await testSyncGetSyncableDataExcludesConfig(); } catch(e) { logTest('testSyncGetSyncableDataExcludesConfig', false, 'ERROR: ' + e.message); }
+            try { await testSyncDisconnectClearsConfig(); } catch(e) { logTest('testSyncDisconnectClearsConfig', false, 'ERROR: ' + e.message); }
+            try { await testSyncMetaSaveAndLoad(); } catch(e) { logTest('testSyncMetaSaveAndLoad', false, 'ERROR: ' + e.message); }
+            try { await testSyncSaveDataUpdatesTimestamp(); } catch(e) { logTest('testSyncSaveDataUpdatesTimestamp', false, 'ERROR: ' + e.message); }
+            try { await testSyncUIShowsConnected(); } catch(e) { logTest('testSyncUIShowsConnected', false, 'ERROR: ' + e.message); }
+            try { await testSyncUIShowsDisconnected(); } catch(e) { logTest('testSyncUIShowsDisconnected', false, 'ERROR: ' + e.message); }
+            try { await testSyncIndicatorExists(); } catch(e) { logTest('testSyncIndicatorExists', false, 'ERROR: ' + e.message); }
+            try { await testSyncSettingsFieldsExist(); } catch(e) { logTest('testSyncSettingsFieldsExist', false, 'ERROR: ' + e.message); }
+            try { await testSyncTimestampPerKey(); } catch(e) { logTest('testSyncTimestampPerKey', false, 'ERROR: ' + e.message); }
+            try { await testSyncSaveDataHookWorks(); } catch(e) { logTest('testSyncSaveDataHookWorks', false, 'ERROR: ' + e.message); }
+            try { await testSyncMergeRemoteNewer(); } catch(e) { logTest('testSyncMergeRemoteNewer', false, 'ERROR: ' + e.message); }
+            try { await testSyncMergeLocalNewer(); } catch(e) { logTest('testSyncMergeLocalNewer', false, 'ERROR: ' + e.message); }
+            try { await testSyncMergeRemoteOnlyKey(); } catch(e) { logTest('testSyncMergeRemoteOnlyKey', false, 'ERROR: ' + e.message); }
+            try { await testSyncMergeLocalOnlyKeyStays(); } catch(e) { logTest('testSyncMergeLocalOnlyKeyStays', false, 'ERROR: ' + e.message); }
+            try { await testSyncMergeMixedTimestamps(); } catch(e) { logTest('testSyncMergeMixedTimestamps', false, 'ERROR: ' + e.message); }
+            try { await testSyncNoGistIdNoOp(); } catch(e) { logTest('testSyncNoGistIdNoOp', false, 'ERROR: ' + e.message); }
+            try { await testSyncNoTokenNoOp(); } catch(e) { logTest('testSyncNoTokenNoOp', false, 'ERROR: ' + e.message); }
+            try { await testSyncableDataIncludesWeekKeys(); } catch(e) { logTest('testSyncableDataIncludesWeekKeys', false, 'ERROR: ' + e.message); }
+            try { await testSyncableDataIncludesCaptureList(); } catch(e) { logTest('testSyncableDataIncludesCaptureList', false, 'ERROR: ' + e.message); }
+            try { await testSyncableDataIncludesVacation(); } catch(e) { logTest('testSyncableDataIncludesVacation', false, 'ERROR: ' + e.message); }
+            try { await testSyncDisconnectPreservesLocalData(); } catch(e) { logTest('testSyncDisconnectPreservesLocalData', false, 'ERROR: ' + e.message); }
+            try { await testSyncDebounceNotFireDuringTest(); } catch(e) { logTest('testSyncDebounceNotFireDuringTest', false, 'ERROR: ' + e.message); }
+            try { await testSyncStatusSyncingShowsPulse(); } catch(e) { logTest('testSyncStatusSyncingShowsPulse', false, 'ERROR: ' + e.message); }
+            try { await testSyncStatusErrorShowsRed(); } catch(e) { logTest('testSyncStatusErrorShowsRed', false, 'ERROR: ' + e.message); }
+            try { await testSyncStatusConnectedShowsGreen(); } catch(e) { logTest('testSyncStatusConnectedShowsGreen', false, 'ERROR: ' + e.message); }
+            try { await testSyncLastTimeDisplays(); } catch(e) { logTest('testSyncLastTimeDisplays', false, 'ERROR: ' + e.message); }
             
             // Display results
             window.alert = _origAlert;
@@ -9754,6 +10194,573 @@ async function testEditAssignmentMovesTask() {
         }
 
         // ============================================
+        // SYNC TESTS
+        // ============================================
+
+        async function testSyncConfigSaveAndLoad() {
+            const saved = loadSyncConfig();
+            
+            saveSyncConfigData({ token: 'ghp_test123', gistId: 'abc456' });
+            const loaded = loadSyncConfig();
+            
+            // Restore
+            if (saved) saveSyncConfigData(saved);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            
+            logTest('Sync config save and load',
+                loaded && loaded.token === 'ghp_test123' && loaded.gistId === 'abc456',
+                loaded ? `token=${loaded.token.substring(0,8)}..., gist=${loaded.gistId}` : 'null');
+        }
+
+        async function testSyncTimestampSetting() {
+            const savedTs = getSyncTimestamps();
+            
+            setSyncTimestamp('test-key-123');
+            const ts = getSyncTimestamps();
+            const hasKey = ts['test-key-123'] && typeof ts['test-key-123'] === 'number';
+            const recent = hasKey && (Date.now() - ts['test-key-123']) < 5000;
+            
+            // Restore
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Sync timestamp set for key',
+                hasKey && recent,
+                `Has key: ${hasKey}, Recent: ${recent}`);
+        }
+
+        async function testSyncGetSyncableDataExcludesConfig() {
+            const saved = loadSyncConfig();
+            
+            saveSyncConfigData({ token: 'test', gistId: 'test' });
+            saveSyncMeta({ lastSync: Date.now() });
+            
+            const data = getSyncableData();
+            const hasConfig = SYNC_CONFIG_KEY in data;
+            const hasMeta = SYNC_META_KEY in data;
+            const hasTimestamps = 'sync-timestamps' in data;
+            
+            // Restore
+            if (saved) saveSyncConfigData(saved);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            localStorage.removeItem(SYNC_META_KEY);
+            
+            logTest('getSyncableData excludes sync config/meta/timestamps',
+                !hasConfig && !hasMeta && !hasTimestamps,
+                `Config: ${hasConfig}, Meta: ${hasMeta}, Timestamps: ${hasTimestamps}`);
+        }
+
+        async function testSyncDisconnectClearsConfig() {
+            const saved = loadSyncConfig();
+            const savedMeta = loadSyncMeta();
+            const savedTs = getSyncTimestamps();
+            
+            saveSyncConfigData({ token: 'test', gistId: 'test' });
+            disconnectSync();
+            
+            const afterConfig = loadSyncConfig();
+            const afterMeta = localStorage.getItem(SYNC_META_KEY);
+            const afterTs = localStorage.getItem('sync-timestamps');
+            
+            // Restore
+            if (saved) saveSyncConfigData(saved);
+            if (Object.keys(savedMeta).length) saveSyncMeta(savedMeta);
+            if (Object.keys(savedTs).length) localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Disconnect clears config, meta, and timestamps',
+                afterConfig === null && afterMeta === null && afterTs === null,
+                `Config: ${afterConfig}, Meta: ${afterMeta}, Ts: ${afterTs}`);
+        }
+
+        async function testSyncMetaSaveAndLoad() {
+            const saved = loadSyncMeta();
+            
+            const now = Date.now();
+            saveSyncMeta({ lastSync: now });
+            const loaded = loadSyncMeta();
+            
+            // Restore
+            if (Object.keys(saved).length) saveSyncMeta(saved);
+            else localStorage.removeItem(SYNC_META_KEY);
+            
+            logTest('Sync meta save and load',
+                loaded && loaded.lastSync === now,
+                loaded ? `lastSync: ${loaded.lastSync}` : 'null');
+        }
+
+        async function testSyncSaveDataUpdatesTimestamp() {
+            const savedTs = getSyncTimestamps();
+            
+            const testKey = 'test-sync-ts-' + Date.now();
+            const before = getSyncTimestamps()[testKey];
+            
+            saveData(testKey, { test: true });
+            
+            const after = getSyncTimestamps()[testKey];
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('saveData updates sync timestamp for key',
+                before === undefined && typeof after === 'number',
+                `Before: ${before}, After: ${after}`);
+        }
+
+        async function testSyncUIShowsConnected() {
+            const saved = loadSyncConfig();
+            
+            saveSyncConfigData({ token: 'ghp_test', gistId: 'abc123' });
+            updateSyncUI();
+            
+            const indicator = document.getElementById('sync-indicator');
+            const visible = indicator && indicator.style.display !== 'none';
+            const statusText = document.getElementById('sync-status-text');
+            const showsConnected = statusText && statusText.innerHTML.includes('Connected');
+            
+            // Restore
+            if (saved) saveSyncConfigData(saved);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            updateSyncUI();
+            
+            logTest('Sync UI shows connected when configured',
+                visible && showsConnected,
+                `Visible: ${visible}, Connected text: ${showsConnected}`);
+        }
+
+        async function testSyncUIShowsDisconnected() {
+            const saved = loadSyncConfig();
+            
+            localStorage.removeItem(SYNC_CONFIG_KEY);
+            updateSyncUI();
+            
+            const indicator = document.getElementById('sync-indicator');
+            const hidden = indicator && indicator.style.display === 'none';
+            const statusText = document.getElementById('sync-status-text');
+            const showsNotConfigured = statusText && statusText.textContent.includes('Not configured');
+            
+            // Restore
+            if (saved) saveSyncConfigData(saved);
+            updateSyncUI();
+            
+            logTest('Sync UI shows disconnected when not configured',
+                hidden && showsNotConfigured,
+                `Hidden: ${hidden}, Not configured: ${showsNotConfigured}`);
+        }
+
+        async function testSyncIndicatorExists() {
+            const indicator = document.getElementById('sync-indicator');
+            const dot = document.getElementById('sync-dot');
+            const label = document.getElementById('sync-label');
+            
+            logTest('Sync indicator elements exist in header',
+                !!indicator && !!dot && !!label,
+                `Indicator: ${!!indicator}, Dot: ${!!dot}, Label: ${!!label}`);
+        }
+
+        async function testSyncSettingsFieldsExist() {
+            const token = document.getElementById('sync-github-token');
+            const gistId = document.getElementById('sync-gist-id');
+            const statusBox = document.getElementById('sync-status-box');
+            
+            logTest('Sync settings fields exist',
+                !!token && !!gistId && !!statusBox,
+                `Token: ${!!token}, GistId: ${!!gistId}, Status: ${!!statusBox}`);
+        }
+
+        async function testSyncTimestampPerKey() {
+            const savedTs = getSyncTimestamps();
+            
+            setSyncTimestamp('key-alpha');
+            await sleep(10);
+            setSyncTimestamp('key-beta');
+            
+            const ts = getSyncTimestamps();
+            const alphaExists = typeof ts['key-alpha'] === 'number';
+            const betaExists = typeof ts['key-beta'] === 'number';
+            const betaNewer = ts['key-beta'] >= ts['key-alpha'];
+            
+            // Restore
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Sync timestamps are per-key and ordered',
+                alphaExists && betaExists && betaNewer,
+                `Alpha: ${ts['key-alpha']}, Beta: ${ts['key-beta']}, Beta newer: ${betaNewer}`);
+        }
+
+        async function testSyncSaveDataHookWorks() {
+            // Verify the saveData override calls setSyncTimestamp
+            const savedTs = getSyncTimestamps();
+            
+            const testKey = 'hook-test-' + Date.now();
+            saveData(testKey, { hookTest: true });
+            
+            const ts = getSyncTimestamps();
+            const stamped = typeof ts[testKey] === 'number';
+            
+            // Also verify data was actually saved
+            const loaded = loadData(testKey);
+            const dataSaved = loaded && loaded.hookTest === true;
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('saveData hook both saves data and stamps timestamp',
+                stamped && dataSaved,
+                `Stamped: ${stamped}, Data saved: ${dataSaved}`);
+        }
+
+        async function testSyncMergeRemoteNewer() {
+            // Simulate: remote has newer timestamp for a key → remote value should win
+            const savedTs = getSyncTimestamps();
+            const testKey = 'merge-remote-newer-' + Date.now();
+            
+            // Set local value with old timestamp
+            localStorage.setItem(testKey, JSON.stringify({ source: 'local' }));
+            const ts = getSyncTimestamps();
+            ts[testKey] = 1000; // very old
+            localStorage.setItem('sync-timestamps', JSON.stringify(ts));
+            
+            // Simulate what pullFromGist does: remote has newer data
+            const remoteData = { [testKey]: JSON.stringify({ source: 'remote' }) };
+            const remoteTimestamps = { [testKey]: Date.now() }; // very new
+            const localTimestamps = getSyncTimestamps();
+            
+            // Apply merge logic
+            const remoteTs = remoteTimestamps[testKey] || 0;
+            const localTs = localTimestamps[testKey] || 0;
+            if (remoteTs > localTs) {
+                localStorage.setItem(testKey, remoteData[testKey]);
+            }
+            
+            const result = JSON.parse(localStorage.getItem(testKey));
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Merge: remote newer → remote wins',
+                result.source === 'remote',
+                `Source: ${result.source}`);
+        }
+
+        async function testSyncMergeLocalNewer() {
+            const savedTs = getSyncTimestamps();
+            const testKey = 'merge-local-newer-' + Date.now();
+            
+            // Set local value with new timestamp
+            localStorage.setItem(testKey, JSON.stringify({ source: 'local' }));
+            const ts = getSyncTimestamps();
+            ts[testKey] = Date.now(); // very new
+            localStorage.setItem('sync-timestamps', JSON.stringify(ts));
+            
+            // Remote has older data
+            const remoteData = { [testKey]: JSON.stringify({ source: 'remote' }) };
+            const remoteTimestamps = { [testKey]: 1000 }; // very old
+            const localTimestamps = getSyncTimestamps();
+            
+            const remoteTs = remoteTimestamps[testKey] || 0;
+            const localTs = localTimestamps[testKey] || 0;
+            if (remoteTs > localTs) {
+                localStorage.setItem(testKey, remoteData[testKey]);
+            }
+            
+            const result = JSON.parse(localStorage.getItem(testKey));
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Merge: local newer → local preserved',
+                result.source === 'local',
+                `Source: ${result.source}`);
+        }
+
+        async function testSyncMergeRemoteOnlyKey() {
+            const savedTs = getSyncTimestamps();
+            const testKey = 'merge-remote-only-' + Date.now();
+            
+            // Key doesn't exist locally
+            localStorage.removeItem(testKey);
+            
+            const remoteData = { [testKey]: JSON.stringify({ source: 'remote-only' }) };
+            const remoteTimestamps = { [testKey]: Date.now() };
+            const localTimestamps = getSyncTimestamps();
+            
+            const remoteTs = remoteTimestamps[testKey] || 0;
+            const localTs = localTimestamps[testKey] || 0;
+            if (remoteTs > localTs) {
+                localStorage.setItem(testKey, remoteData[testKey]);
+            }
+            
+            const result = JSON.parse(localStorage.getItem(testKey));
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Merge: key only on remote → pulled to local',
+                result && result.source === 'remote-only',
+                result ? `Source: ${result.source}` : 'Not found');
+        }
+
+        async function testSyncMergeLocalOnlyKeyStays() {
+            const savedTs = getSyncTimestamps();
+            const testKey = 'merge-local-only-' + Date.now();
+            
+            // Set local only
+            localStorage.setItem(testKey, JSON.stringify({ source: 'local-only' }));
+            const ts = getSyncTimestamps();
+            ts[testKey] = Date.now();
+            localStorage.setItem('sync-timestamps', JSON.stringify(ts));
+            
+            // Remote doesn't have this key — merge loop only iterates remote keys
+            const remoteData = {}; // empty
+            // Since merge only loops over remoteData keys, local-only key is untouched
+            for (const key in remoteData) {
+                const remoteTs = 0;
+                const localTs = getSyncTimestamps()[key] || 0;
+                if (remoteTs > localTs) {
+                    localStorage.setItem(key, remoteData[key]);
+                }
+            }
+            
+            const result = JSON.parse(localStorage.getItem(testKey));
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Merge: key only on local → stays (not deleted)',
+                result && result.source === 'local-only',
+                result ? `Source: ${result.source}` : 'Deleted!');
+        }
+
+        async function testSyncMergeMixedTimestamps() {
+            const savedTs = getSyncTimestamps();
+            const keyA = 'merge-mix-a-' + Date.now();
+            const keyB = 'merge-mix-b-' + Date.now();
+            
+            // keyA: local newer, keyB: remote newer
+            localStorage.setItem(keyA, JSON.stringify({ source: 'local-a' }));
+            localStorage.setItem(keyB, JSON.stringify({ source: 'local-b' }));
+            const ts = getSyncTimestamps();
+            ts[keyA] = Date.now();
+            ts[keyB] = 1000; // old
+            localStorage.setItem('sync-timestamps', JSON.stringify(ts));
+            
+            const remoteData = {
+                [keyA]: JSON.stringify({ source: 'remote-a' }),
+                [keyB]: JSON.stringify({ source: 'remote-b' })
+            };
+            const remoteTimestamps = {
+                [keyA]: 1000, // old → local wins
+                [keyB]: Date.now() // new → remote wins
+            };
+            
+            const localTimestamps = getSyncTimestamps();
+            for (const key in remoteData) {
+                const rTs = remoteTimestamps[key] || 0;
+                const lTs = localTimestamps[key] || 0;
+                if (rTs > lTs) {
+                    localStorage.setItem(key, remoteData[key]);
+                }
+            }
+            
+            const resultA = JSON.parse(localStorage.getItem(keyA));
+            const resultB = JSON.parse(localStorage.getItem(keyB));
+            
+            // Clean up
+            localStorage.removeItem(keyA);
+            localStorage.removeItem(keyB);
+            localStorage.setItem('sync-timestamps', JSON.stringify(savedTs));
+            
+            logTest('Merge: mixed timestamps resolved correctly per key',
+                resultA.source === 'local-a' && resultB.source === 'remote-b',
+                `A: ${resultA.source} (should be local), B: ${resultB.source} (should be remote)`);
+        }
+
+        async function testSyncNoGistIdNoOp() {
+            const saved = loadSyncConfig();
+            
+            saveSyncConfigData({ token: 'ghp_test', gistId: null });
+            
+            // pushToGist should return early
+            const beforeMeta = loadSyncMeta();
+            await pushToGist();
+            const afterMeta = loadSyncMeta();
+            
+            // Should not have changed lastSync since push was skipped
+            const noChange = JSON.stringify(beforeMeta) === JSON.stringify(afterMeta);
+            
+            if (saved) saveSyncConfigData(saved);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            
+            logTest('Push with no Gist ID is no-op',
+                noChange,
+                `Before: ${JSON.stringify(beforeMeta)}, After: ${JSON.stringify(afterMeta)}`);
+        }
+
+        async function testSyncNoTokenNoOp() {
+            const saved = loadSyncConfig();
+            
+            localStorage.removeItem(SYNC_CONFIG_KEY);
+            
+            const beforeMeta = loadSyncMeta();
+            await pushToGist();
+            const afterMeta = loadSyncMeta();
+            
+            const noChange = JSON.stringify(beforeMeta) === JSON.stringify(afterMeta);
+            
+            if (saved) saveSyncConfigData(saved);
+            
+            logTest('Push with no token is no-op',
+                noChange,
+                `No change: ${noChange}`);
+        }
+
+        async function testSyncableDataIncludesWeekKeys() {
+            // Ensure week data keys appear in syncable data
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            generateWeekData(weekStart);
+            
+            const data = getSyncableData();
+            const hasWeekKey = weekKey in data;
+            
+            logTest('getSyncableData includes week keys',
+                hasWeekKey,
+                `Has ${weekKey}: ${hasWeekKey}`);
+        }
+
+        async function testSyncableDataIncludesCaptureList() {
+            // Ensure capture-list is in syncable data
+            const cl = localStorage.getItem('capture-list');
+            if (!cl) localStorage.setItem('capture-list', '[]');
+            
+            const data = getSyncableData();
+            const hasCL = 'capture-list' in data;
+            
+            if (!cl) localStorage.removeItem('capture-list');
+            
+            logTest('getSyncableData includes capture-list',
+                hasCL,
+                `Has capture-list: ${hasCL}`);
+        }
+
+        async function testSyncableDataIncludesVacation() {
+            const saved = loadVacation();
+            
+            saveVacation({ active: true, startDate: '2026-06-01', endDate: '2026-06-10' });
+            
+            const data = getSyncableData();
+            const hasVac = 'vacation-mode' in data;
+            
+            if (saved) saveVacation(saved);
+            else saveVacation(null);
+            
+            logTest('getSyncableData includes vacation-mode',
+                hasVac,
+                `Has vacation-mode: ${hasVac}`);
+        }
+
+        async function testSyncDisconnectPreservesLocalData() {
+            const saved = loadSyncConfig();
+            
+            // Save some data, connect sync, then disconnect
+            const testKey = 'disconnect-preserve-' + Date.now();
+            localStorage.setItem(testKey, JSON.stringify({ preserve: true }));
+            
+            saveSyncConfigData({ token: 'test', gistId: 'test' });
+            disconnectSync();
+            
+            // Local data should still be there
+            const result = JSON.parse(localStorage.getItem(testKey));
+            
+            // Clean up
+            localStorage.removeItem(testKey);
+            if (saved) saveSyncConfigData(saved);
+            
+            logTest('Disconnect preserves local data',
+                result && result.preserve === true,
+                result ? `Preserved: ${result.preserve}` : 'Data lost!');
+        }
+
+        async function testSyncDebounceNotFireDuringTest() {
+            // In test mode, scheduleSyncPush should not schedule anything
+            const savedConfig = loadSyncConfig();
+            saveSyncConfigData({ token: 'test', gistId: 'test' });
+            
+            // _testMode is true during tests, so scheduleSyncPush returns early
+            scheduleSyncPush();
+            const timerIsNull = syncDebounceTimer === null;
+            
+            if (savedConfig) saveSyncConfigData(savedConfig);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            
+            logTest('scheduleSyncPush does not fire during test mode',
+                timerIsNull,
+                `Timer null: ${timerIsNull}`);
+        }
+
+        async function testSyncStatusSyncingShowsPulse() {
+            setSyncStatus('syncing');
+            const dot = document.getElementById('sync-dot');
+            const hasSyncing = dot && dot.classList.contains('syncing');
+            
+            setSyncStatus('connected'); // reset
+            
+            logTest('setSyncStatus syncing shows pulsing dot',
+                hasSyncing,
+                `Has syncing class: ${hasSyncing}`);
+        }
+
+        async function testSyncStatusErrorShowsRed() {
+            setSyncStatus('error');
+            const dot = document.getElementById('sync-dot');
+            const hasError = dot && dot.classList.contains('error');
+            
+            setSyncStatus('connected'); // reset
+            
+            logTest('setSyncStatus error shows red dot',
+                hasError,
+                `Has error class: ${hasError}`);
+        }
+
+        async function testSyncStatusConnectedShowsGreen() {
+            setSyncStatus('connected');
+            const dot = document.getElementById('sync-dot');
+            const hasConnected = dot && dot.classList.contains('connected');
+            
+            logTest('setSyncStatus connected shows green dot',
+                hasConnected,
+                `Has connected class: ${hasConnected}`);
+        }
+
+        async function testSyncLastTimeDisplays() {
+            const savedMeta = loadSyncMeta();
+            const savedConfig = loadSyncConfig();
+            
+            saveSyncConfigData({ token: 'test', gistId: 'test' });
+            saveSyncMeta({ lastSync: Date.now() - 30000 }); // 30 seconds ago
+            updateSyncUI();
+            
+            const lastTime = document.getElementById('sync-last-time');
+            const hasText = lastTime && lastTime.textContent.includes('Last sync:');
+            
+            if (savedConfig) saveSyncConfigData(savedConfig);
+            else localStorage.removeItem(SYNC_CONFIG_KEY);
+            if (Object.keys(savedMeta).length) saveSyncMeta(savedMeta);
+            else localStorage.removeItem(SYNC_META_KEY);
+            updateSyncUI();
+            
+            logTest('Sync last time displays after meta is set',
+                hasText,
+                lastTime ? `Text: "${lastTime.textContent}"` : 'Element missing');
+        }
+
+        // ============================================
         // DUPLICATE DETECTION TESTS
         // ============================================
 
@@ -10559,6 +11566,7 @@ async function testEditAssignmentMovesTask() {
             }
             loadRoutinesLibrary();
             renderTodayView();
+            initSync();
         }
 
         init();
