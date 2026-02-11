@@ -1550,7 +1550,7 @@
             container.innerHTML = html;
         }
 
-        function editCaptureAssignment(itemId) {
+function editCaptureAssignment(itemId) {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const item = captureList.find(i => i.id === itemId);
             
@@ -1558,7 +1558,13 @@
             
             currentAssignItemId = itemId;
             
-            // Pre-fill form with current values (one-time assignment only)
+            // Store the old assignment so we can remove it if date changes
+            window.currentEditingOldAssignment = {
+                dateKey: item.assignedTo.dateKey,
+                weekKey: item.assignedTo.weekKey
+            };
+            
+            // Pre-fill form with current values
             document.getElementById('assign-date').value = item.assignedTo.dateKey;
             document.getElementById('assign-time').value = item.assignedTo.time || '';
             
@@ -1806,7 +1812,7 @@
             }
         }
 
-        function confirmAssignCaptureItem() {
+    function confirmAssignCaptureItem() {
             if (!currentAssignItemId) return;
             
             const dateInput = document.getElementById('assign-date').value;
@@ -1823,7 +1829,25 @@
             
             if (!item) return;
             
-            // One-time assignment only (no recurring)
+            // Check if we're editing an existing assignment
+            const isEditing = item.status === 'assigned' && item.assignedTo && window.currentEditingOldAssignment;
+            
+            if (isEditing) {
+                // Remove task from old location
+                const oldWeekData = loadData(window.currentEditingOldAssignment.weekKey);
+                if (oldWeekData && oldWeekData[window.currentEditingOldAssignment.dateKey]) {
+                    oldWeekData[window.currentEditingOldAssignment.dateKey].tasks = 
+                        oldWeekData[window.currentEditingOldAssignment.dateKey].tasks.filter(t => 
+                            t.captureItemId !== item.id
+                        );
+                    saveData(window.currentEditingOldAssignment.weekKey, oldWeekData);
+                }
+                
+                // Clear the editing flag
+                window.currentEditingOldAssignment = null;
+            }
+            
+            // One-time assignment to new location
             const selectedDate = parseLocalDate(dateInput);
             const weekStart = getWeekStart(selectedDate);
             const weekKey = getWeekKey(weekStart);
@@ -1842,7 +1866,7 @@
                 return;
             }
             
-            // Add task to that day
+            // Add task to new location
             const newTask = {
                 id: Date.now(),
                 text: item.text,
@@ -1863,7 +1887,7 @@
                 dateKey: dateKey,
                 weekKey: weekKey,
                 time: timeInput || null,
-                taskId: newTask.id // Store the task ID for syncing
+                taskId: newTask.id
             };
             
             localStorage.setItem('capture-list', JSON.stringify(captureList));
@@ -1871,12 +1895,12 @@
             closeModal('assign-capture-modal');
             renderCaptureList();
             
-            alert(`✅ Added "${item.text}" to ${dateKey}!`);
+            const actionText = isEditing ? 'moved to' : 'added to';
+            alert(`✅ "${item.text}" ${actionText} ${dateKey}!`);
             
             // Refresh the current view
             renderCurrentView();
         }
-
           function deleteCaptureItem(itemId) {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const item = captureList.find(i => i.id === itemId);
