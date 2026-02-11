@@ -5135,7 +5135,12 @@ async function testEditAssignmentMovesTask() {
             const recurringGone = !rec3.some(rt => rt.text === 'TL-Delete-Test');
             
             // Clean up
-            if (savedRoutines) { Object.assign(ROUTINES_LIBRARY, JSON.parse(savedRoutines)); saveData('routines-library', ROUTINES_LIBRARY); }
+            if (savedRoutines) { 
+                // Clear and restore - savedRoutines is already parsed by loadData
+                for (const key of Object.keys(ROUTINES_LIBRARY)) delete ROUTINES_LIBRARY[key];
+                Object.assign(ROUTINES_LIBRARY, savedRoutines); 
+                saveData('routines-library', ROUTINES_LIBRARY); 
+            }
             if (savedTemplate) saveData('master-template', savedTemplate);
             else localStorage.removeItem('master-template');
             if (savedRecurring) saveData('recurring-tasks', savedRecurring);
