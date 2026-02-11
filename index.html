@@ -255,7 +255,9 @@
         .add-task-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary-dark); }
         
         /* Bottom Navigation */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border); padding: 10px; display: flex; justify-content: space-around; box-shadow: 0 -4px 16px rgba(93, 173, 226, 0.08); z-index: 100; backdrop-filter: blur(10px); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border); padding: 10px; display: flex; justify-content: space-around; box-shadow: 0 -4px 16px rgba(93, 173, 226, 0.08); z-index: 100; backdrop-filter: blur(10px); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+        .bottom-nav::-webkit-scrollbar { display: none; }
+        .bottom-nav .nav-item { flex: 0 0 auto; min-width: 56px; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; background: none; border: none; cursor: pointer; transition: all 0.3s ease; border-radius: 12px; }
         .nav-item:hover { background: var(--surface-hover); }
         .nav-item.active { background: var(--primary-light); }
@@ -1734,7 +1736,9 @@
             'post-trip-chill': { name: 'Post-Trip Unpack (Chill Weekend)', time: '30-45 min', category: 'special', steps: ['Unpack clothes - laundry or closet', 'Quick check on travel supplies', 'Repack anything that needs refreshing', 'Stow bag'] },
             'pre-trip': { name: 'Pre-Trip Packing', time: '1-2 hours', category: 'special', steps: ['Check packing list', 'Pack clothes by day/outfit', 'Pack toiletries/skincare', 'Pack hair supplies & tools', 'Pack makeup', 'Charge devices', 'Confirm travel details', 'Clean apartment before leaving (at least basic tidy)'] },
             'post-hosting': { name: 'Post-Hosting Cleanup', time: '30-60 min', category: 'special', steps: ['Collect all dishes - dishwasher/sink', 'Take out trash and recycling', 'Wipe down all surfaces', 'Sweep/vacuum main areas', 'Put furniture back in place', 'Quick bathroom check', 'Deal with leftover food', 'Start a laundry load if needed'] },
-            'gift-unwrap': { name: 'Gift Unwrapping Protocol', time: '5 min', category: 'habit', steps: ['The moment a gift gets unwrapped:', 'Decide: keep the bag/paper or not', 'If keeping: put directly in IKEA storage case', 'If not: recycling/trash immediately', 'Put gift in its home right away', 'Don\'t let wrapping/bags accumulate'] }
+            'gift-unwrap': { name: 'Gift Unwrapping Protocol', time: '5 min', category: 'habit', steps: ['The moment a gift gets unwrapped:', 'Decide: keep the bag/paper or not', 'If keeping: put directly in IKEA storage case', 'If not: recycling/trash immediately', 'Put gift in its home right away', 'Don\'t let wrapping/bags accumulate'] },
+            'apartment-reset': { name: 'Full Apartment Reset', time: '5-6 hours', category: 'deepclean', steps: ['Phase 1: Create paths (10 min) - clear walkways first', 'Phase 2: Collect all laundry from every room, sort into piles', 'Phase 3: Room-by-room tidy - get every room to FUNCTIONAL', 'All items have homes, surfaces clear, pathways clear', 'Phase 4: Set up cleaning stations (all-purpose cleaner in every room)', 'Phase 5: Deep clean each room', 'Phase 6: Start laundry rotation', 'Phase 7: Final walkthrough', 'Get to functional FIRST, then deep clean. Don\'t try both at once.'] },
+            'ski-gear-storage': { name: 'Ski Gear Storage', time: '30 min', category: 'special', steps: ['Collect all ski stuff', 'Clean/wipe down equipment', 'Store high up in bedroom', 'Wash any ski clothing (check for Merino wool items)', 'End of season task'] }
                 };
 
         // 4-WEEK ROTATING TEMPLATE SYSTEM
@@ -11558,6 +11562,57 @@ async function testEditAssignmentMovesTask() {
             alert(`✅ Week ${currentTemplateWeek} cleared!`);
         }
 
+    function seedCaptureList() {
+        // Only seed once — if capture list already exists, skip
+        if (localStorage.getItem('capture-list')) return;
+        if (localStorage.getItem('capture-list-seeded')) return;
+        
+        const items = [
+            { text: 'Put away shoes (some need cleaning first)', category: 'cleaning', priority: 'medium', notes: 'Front room deep clean' },
+            { text: 'Clean dirty shoes before storing', category: 'cleaning', priority: 'medium', notes: 'Front room' },
+            { text: 'Organize shoe rack/cabinet contents', category: 'cleaning', priority: 'low', notes: 'Front room' },
+            { text: 'Wipe down walls - front room', category: 'deepclean', priority: 'low', notes: 'Front room deep clean' },
+            { text: 'Sweep and mop floors - front room', category: 'cleaning', priority: 'medium', notes: 'Front room deep clean' },
+            { text: 'Clean ALL hairbrushes (home + travel)', category: 'hair', priority: 'medium', notes: 'Remove hair, wash with shampoo, dry completely' },
+            { text: 'Travel gear special wash', category: 'special', priority: 'low', notes: 'Items that need specific care/cleaning' },
+            { text: 'Ski gear special wash', category: 'special', priority: 'low', notes: 'Technical fabrics, gentle care. Research proper methods.' },
+            { text: 'Kitchen: Scrub stovetop, clean microwave inside, wipe cabinet fronts', category: 'deepclean', priority: 'medium', notes: 'General deep cleaning' },
+            { text: 'Bathroom: Scrub shower/tub walls, clean toilet, scrub grout', category: 'deepclean', priority: 'medium', notes: 'General deep cleaning' },
+            { text: 'Bedroom: Dust all surfaces, clean mirrors, wipe baseboards', category: 'deepclean', priority: 'low', notes: 'General deep cleaning' },
+            { text: 'Living room: Dust shelves, clean windows, vacuum under furniture', category: 'deepclean', priority: 'low', notes: 'General deep cleaning' },
+            { text: 'All rooms: Wipe down light switches and door handles', category: 'cleaning', priority: 'low', notes: 'General deep cleaning' },
+            { text: 'Clear bed completely', category: 'cleaning', priority: 'high', notes: 'Bedroom - est. part of 2-3 hr bedroom reset' },
+            { text: 'Sort all clothes (clean vs dirty)', category: 'laundry', priority: 'high', notes: 'Bedroom' },
+            { text: 'Clear bedroom floor', category: 'cleaning', priority: 'high', notes: 'Bedroom' },
+            { text: 'Clear window sill', category: 'cleaning', priority: 'low', notes: 'Bedroom' },
+            { text: 'Clear vanity/desk area', category: 'cleaning', priority: 'medium', notes: 'Bedroom' },
+            { text: 'Deal with boxes in bedroom', category: 'cleaning', priority: 'medium', notes: 'Bedroom' },
+            { text: 'Clear coffee table', category: 'cleaning', priority: 'medium', notes: 'Living room - est. 45 min to 1 hr' },
+            { text: 'Organize items on couch', category: 'cleaning', priority: 'medium', notes: 'Living room' },
+            { text: 'Put away items from pink bag', category: 'cleaning', priority: 'medium', notes: 'Living room' },
+            { text: 'Put away items from balloon bag', category: 'cleaning', priority: 'low', notes: 'Living room' },
+            { text: 'Wash ALL makeup brushes & sponges (full deep clean)', category: 'special', priority: 'medium', notes: 'Post-wedding task - after Feb ~26' },
+            { text: 'Complete post-trip unpacking routine after wedding', category: 'special', priority: 'high', notes: 'Use the Post-Trip Unpack (Intense) routine' }
+        ];
+        
+        const captureList = items.map((item, i) => ({
+            id: 'seed-' + (i + 1),
+            text: item.text,
+            category: item.category,
+            priority: item.priority,
+            notes: item.notes || '',
+            time: undefined,
+            status: 'unassigned',
+            assignedTo: null,
+            createdAt: new Date().toISOString(),
+            completedAt: null,
+            fromCapture: true
+        }));
+        
+        localStorage.setItem('capture-list', JSON.stringify(captureList));
+        localStorage.setItem('capture-list-seeded', 'true');
+    }
+
     function init() {
         // Check if we're in test mode
             if (window.location.hash === '#test') {
@@ -11565,6 +11620,7 @@ async function testEditAssignmentMovesTask() {
                 document.getElementById('test-view').classList.remove('hidden');
                 document.getElementById('today-view').classList.add('hidden');
             }
+            seedCaptureList();
             loadRoutinesLibrary();
             renderTodayView();
             initSync();
