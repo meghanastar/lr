@@ -333,6 +333,61 @@
         .task-item.drag-over {
             border-top: 3px solid var(--primary);
         }
+        /* Capture List */
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .capture-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .capture-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .capture-item.unassigned {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .capture-item.assigned {
+            border-left: 4px solid var(--primary);
+        }
+        
+        .capture-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .capture-status.unassigned {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .capture-status.assigned {
+            background: var(--primary-lighter);
+            color: var(--primary-dark);
+        }
 
 
         /* Responsive */
@@ -473,7 +528,12 @@
             <div class="nav-icon">⚙️</div>
             <div class="nav-label">Settings</div>
         </button>
+        <button class="nav-item" onclick="switchView('capture')">
+            <div class="nav-icon">📝</div>
+            <div class="nav-label">Capture</div>
+        </button>
     </div>
+    
 
     <div id="add-task-modal" class="modal">
         <div class="modal-content">
@@ -720,6 +780,56 @@
             <div id="recurring-tasks-list"></div>
         </div>
     </div>
+    
+            <div id="capture-view" class="view-content hidden">
+                        <div id="add-capture-item-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Add Capture Item</h2>
+                    <button class="modal-close" onclick="closeModal('add-capture-item-modal')">×</button>
+                </div>
+                
+                <input type="text" id="capture-item-text" placeholder="What did you discover?" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Category</label>
+                <select id="capture-item-category" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                    <option value="deep-clean">Deep Clean</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="projects">Projects</option>
+                    <option value="shopping">Shopping</option>
+                    <option value="organizing">Organizing</option>
+                    <option value="other">Other</option>
+                </select>
+                
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Priority (optional)</label>
+                <select id="capture-item-priority" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                    <option value="">None</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+                
+                <textarea id="capture-item-notes" placeholder="Notes (optional)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; min-height: 80px;"></textarea>
+                
+                <button class="btn btn-primary" onclick="saveCaptureItem()" style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">Add to Capture List</button>
+            </div>
+        </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-family: 'Playfair Display', serif; font-size: 1.8rem;">📝 Capture List</h2>
+                <button class="btn btn-primary" onclick="openAddCaptureItemModal()">+ Add Item</button>
+            </div>
+            
+            <div style="margin-bottom: 30px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="filter-btn active" onclick="filterCaptureList('all')">All</button>
+                    <button class="filter-btn" onclick="filterCaptureList('unassigned')">Unassigned</button>
+                    <button class="filter-btn" onclick="filterCaptureList('assigned')">Assigned</button>
+                </div>
+            </div>
+            
+            <div id="capture-list-content"></div>
+        </div>
             
     <div id="day-detail-modal" class="modal">
         <div class="modal-content">
