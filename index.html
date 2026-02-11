@@ -6094,6 +6094,18 @@ async function testEditAssignmentMovesTask() {
             }
         }
 
+        // Helper: auto-respond to duplicate warning modal once it opens
+        function autoRespondDuplicateWarning(action, delayMs) {
+            const checkInterval = setInterval(() => {
+                if (duplicateWarningResolve) {
+                    clearInterval(checkInterval);
+                    setTimeout(() => closeDuplicateWarning(action), delayMs || 10);
+                }
+            }, 10);
+            // Safety: clear after 2 seconds to prevent leaks
+            setTimeout(() => clearInterval(checkInterval), 2000);
+        }
+
         async function testDuplicateAddAnywayAddsTask() {
             const savedTemplate = loadData('master-template');
             
@@ -6103,29 +6115,21 @@ async function testEditAssignmentMovesTask() {
             template[1]['sunday'] = [{ text: 'Dup-AddAnyway-Test', category: 'habit', time: '5 min' }];
             saveMasterTemplate(template);
             
-            // Simulate the add flow: set the globals the way the UI would
-            currentTemplateWeek = 1;
-            currentTemplateAddDay = 'sunday';
+            // Auto-respond with "add-anyway" when the modal opens
+            autoRespondDuplicateWarning('add-anyway');
             
-            // The duplicate exists, so showDuplicateWarning will fire.
-            // Schedule a click on "add-anyway" after a short delay
-            setTimeout(() => closeDuplicateWarning('add-anyway'), 50);
-            
-            await addRoutineToTemplate.__test_bypass 
-                ? addRoutineToTemplate.__test_bypass() 
-                : (async () => {
-                    // Manually run the logic of addRoutineToTemplate
-                    const routine = { name: 'Dup-AddAnyway-Test', category: 'habit', time: '5 min' };
-                    const existing = findTemplateDuplicate(routine.name, 1, 'sunday');
-                    if (existing) {
-                        const action = await showDuplicateWarning(routine.name, existing, 'Week 1 Sunday');
-                        if (action === 'add-anyway') {
-                            const t = loadMasterTemplate();
-                            t[1]['sunday'].push({ text: routine.name, category: routine.category, time: routine.time });
-                            saveMasterTemplate(t);
-                        }
-                    }
-                })();
+            await (async () => {
+                const routine = { name: 'Dup-AddAnyway-Test', category: 'habit', time: '5 min' };
+                const existing = findTemplateDuplicate(routine.name, 1, 'sunday');
+                if (existing) {
+                    const action = await showDuplicateWarning(routine.name, existing, 'Week 1 Sunday');
+                    if (action === 'cancel') return;
+                    const t = loadMasterTemplate();
+                    if (!t[1]['sunday']) t[1]['sunday'] = [];
+                    t[1]['sunday'].push({ text: routine.name, category: routine.category, time: routine.time });
+                    saveMasterTemplate(t);
+                }
+            })();
             
             const reloaded = loadMasterTemplate();
             const count = (reloaded[1]['sunday'] || []).filter(t => t.text === 'Dup-AddAnyway-Test').length;
@@ -6151,20 +6155,24 @@ async function testEditAssignmentMovesTask() {
             const origPrompt = window.prompt;
             window.prompt = () => '8:00 AM';
             
-            // Schedule "change-time" click
-            setTimeout(() => closeDuplicateWarning('change-time'), 50);
+            // Auto-respond with "change-time"
+            autoRespondDuplicateWarning('change-time');
             
             await (async () => {
                 const taskName = 'Dup-ChangeTime-Test';
                 const existing = findTemplateDuplicate(taskName, 2, 'monday');
                 if (existing) {
                     const action = await showDuplicateWarning(taskName, existing, 'Week 2 Monday');
+                    if (action === 'cancel') return;
+                    let time = '10 min';
                     if (action === 'change-time') {
                         const newTime = window.prompt('Enter time:', '');
-                        const t = loadMasterTemplate();
-                        t[2]['monday'].push({ text: taskName, category: 'cleaning', time: newTime });
-                        saveMasterTemplate(t);
+                        if (newTime !== null) time = newTime;
                     }
+                    const t = loadMasterTemplate();
+                    if (!t[2]['monday']) t[2]['monday'] = [];
+                    t[2]['monday'].push({ text: taskName, category: 'cleaning', time: time });
+                    saveMasterTemplate(t);
                 }
             })();
             
@@ -6191,20 +6199,18 @@ async function testEditAssignmentMovesTask() {
             template[3]['tuesday'] = [{ text: 'Dup-Cancel-Test', category: 'skincare', time: '15 min' }];
             saveMasterTemplate(template);
             
-            // Schedule "cancel" click
-            setTimeout(() => closeDuplicateWarning('cancel'), 50);
+            // Auto-respond with "cancel"
+            autoRespondDuplicateWarning('cancel');
             
             await (async () => {
                 const taskName = 'Dup-Cancel-Test';
                 const existing = findTemplateDuplicate(taskName, 3, 'tuesday');
                 if (existing) {
                     const action = await showDuplicateWarning(taskName, existing, 'Week 3 Tuesday');
-                    if (action === 'cancel') {
-                        // Do nothing - task should NOT be added
-                        return;
-                    }
+                    if (action === 'cancel') return;
                     // If we get here, cancel didn't work
                     const t = loadMasterTemplate();
+                    if (!t[3]['tuesday']) t[3]['tuesday'] = [];
                     t[3]['tuesday'].push({ text: taskName, category: 'skincare' });
                     saveMasterTemplate(t);
                 }
