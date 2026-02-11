@@ -801,7 +801,7 @@
             </div>
         </div>
 
-                        <div id="add-capture-item-modal" class="modal">
+      <div id="add-capture-item-modal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 class="modal-title">Add Capture Item</h2>
@@ -833,6 +833,32 @@
                 <button class="btn btn-primary" onclick="saveCaptureItem()" style="width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">Add to Capture List</button>
             </div>
         </div>
+        
+            <div id="assign-capture-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Assign to Day</h2>
+                <button class="modal-close" onclick="closeModal('assign-capture-modal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Select Date</label>
+                <input type="date" class="form-input" id="assign-date" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Time (optional)</label>
+                <input type="text" class="form-input" id="assign-time" placeholder="e.g., 10:00 AM, Morning, Evening">
+            </div>
+            
+            <div class="info-box" style="background: var(--primary-light); margin-bottom: 20px;">
+                <strong>📅 Note:</strong> This will add the task to the selected day and mark it as assigned in your capture list.
+            </div>
+            
+            <button class="btn btn-primary" onclick="confirmAssignCaptureItem()">Assign to Day</button>
+        </div>
+    </div>
+
             
     <div id="day-detail-modal" class="modal">
         <div class="modal-content">
@@ -1357,11 +1383,72 @@
             renderCaptureList();
         }
 
+                let currentAssignItemId = null;
+
         function assignCaptureItem(itemId) {
-            // TODO: Open modal to select date and optional time
-            // For now, just show alert
-            alert('Assignment feature coming in next step!');
+            currentAssignItemId = itemId;
+            
+            // Set default date to today
+            const today = new Date();
+            document.getElementById('assign-date').value = formatDate(today);
+            document.getElementById('assign-time').value = '';
+            
+            document.getElementById('assign-capture-modal').classList.add('active');
         }
+
+        function confirmAssignCaptureItem() {
+            if (!currentAssignItemId) return;
+            
+            const dateInput = document.getElementById('assign-date').value;
+            const timeInput = document.getElementById('assign-time').value.trim();
+            
+            if (!dateInput) {
+                alert('Please select a date!');
+                return;
+            }
+            
+            // Load capture list
+            let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const item = captureList.find(i => i.id === currentAssignItemId);
+            
+            if (!item) return;
+            
+            // Get the week data for the selected date
+            const selectedDate = new Date(dateInput + 'T12:00:00');
+            const weekStart = getWeekStart(selectedDate);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const dateKey = formatDate(selectedDate);
+            
+            // Add task to that day
+            weekData[dateKey].tasks.push({
+                id: Date.now(),
+                text: item.text,
+                category: item.category,
+                time: timeInput || undefined,
+                completed: false,
+                notes: item.notes || '',
+                fromCapture: true
+            });
+            
+            saveData(weekKey, weekData);
+            
+            // Update capture item status
+            item.status = 'assigned';
+            item.assignedTo = {
+                dateKey: dateKey,
+                weekKey: weekKey,
+                time: timeInput || null
+            };
+            
+            localStorage.setItem('capture-list', JSON.stringify(captureList));
+            
+            closeModal('assign-capture-modal');
+            renderCaptureList();
+            
+            alert(`✅ Added "${item.text}" to ${dateKey}!`);
+        }
+
 
         function deleteCaptureItem(itemId) {
             if (!confirm('Delete this capture item?')) return;
