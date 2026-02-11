@@ -834,7 +834,7 @@
             </div>
         </div>
         
-            <div id="assign-capture-modal" class="modal">
+    <div id="assign-capture-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Assign to Day</h2>
@@ -842,7 +842,17 @@
             </div>
             
             <div class="form-group">
-                <label class="form-label">Select Date</label>
+                <label class="form-label">📅 Quick Select</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="filter-btn" onclick="setAssignDate('today')">Today</button>
+                    <button class="filter-btn" onclick="setAssignDate('tomorrow')">Tomorrow</button>
+                    <button class="filter-btn" onclick="setAssignDate('this-weekend')">This Weekend</button>
+                    <button class="filter-btn" onclick="setAssignDate('next-week')">Next Week</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Or Pick Specific Date</label>
                 <input type="date" class="form-input" id="assign-date" required>
             </div>
             
@@ -851,8 +861,61 @@
                 <input type="text" class="form-input" id="assign-time" placeholder="e.g., 10:00 AM, Morning, Evening">
             </div>
             
-            <div class="info-box" style="background: var(--primary-light); margin-bottom: 20px;">
-                <strong>📅 Note:</strong> This will add the task to the selected day and mark it as assigned in your capture list.
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="make-recurring" onchange="toggleRecurringOptions()">
+                    <span style="font-weight: 500;">🔄 Make this recurring</span>
+                </label>
+            </div>
+            
+            <div id="recurring-options" style="display: none; margin-top: 15px; padding: 15px; background: var(--surface-hover); border-radius: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Repeat Frequency</label>
+                    <select class="form-select" id="assign-frequency">
+                        <option value="daily">Daily (every day)</option>
+                        <option value="weekly">Weekly (specific days)</option>
+                        <option value="biweekly">Bi-weekly (every 2 weeks)</option>
+                        <option value="monthly">Monthly (specific date)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="assign-days-selector">
+                    <label class="form-label">Repeat on these days:</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-monday" value="monday">
+                            <span>Monday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-tuesday" value="tuesday">
+                            <span>Tuesday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-wednesday" value="wednesday">
+                            <span>Wednesday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-thursday" value="thursday">
+                            <span>Thursday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-friday" value="friday">
+                            <span>Friday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-saturday" value="saturday">
+                            <span>Saturday</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="assign-day-sunday" value="sunday">
+                            <span>Sunday</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-box" style="background: var(--primary-light); margin-top: 20px; margin-bottom: 20px;">
+                <strong>📅 Note:</strong> This will add the task to your schedule and mark it as assigned in your capture list.
             </div>
             
             <button class="btn btn-primary" onclick="confirmAssignCaptureItem()">Assign to Day</button>
@@ -1383,7 +1446,7 @@
             renderCaptureList();
         }
 
-                let currentAssignItemId = null;
+                        let currentAssignItemId = null;
 
         function assignCaptureItem(itemId) {
             currentAssignItemId = itemId;
@@ -1391,9 +1454,56 @@
             // Set default date to today
             const today = new Date();
             document.getElementById('assign-date').value = formatDate(today);
+            document.getElementById('assign-date').min = formatDate(today); // Can't assign to past
             document.getElementById('assign-time').value = '';
+            document.getElementById('make-recurring').checked = false;
+            document.getElementById('recurring-options').style.display = 'none';
+            
+            // Reset days checkboxes
+            document.querySelectorAll('#assign-days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
             
             document.getElementById('assign-capture-modal').classList.add('active');
+        }
+
+        function setAssignDate(option) {
+            const today = new Date();
+            let targetDate;
+            
+            if (option === 'today') {
+                targetDate = today;
+            } else if (option === 'tomorrow') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 1);
+            } else if (option === 'this-weekend') {
+                targetDate = new Date(today);
+                const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+                targetDate.setDate(today.getDate() + daysUntilSaturday);
+            } else if (option === 'next-week') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 7);
+            }
+            
+            document.getElementById('assign-date').value = formatDate(targetDate);
+        }
+
+        function toggleRecurringOptions() {
+            const isChecked = document.getElementById('make-recurring').checked;
+            document.getElementById('recurring-options').style.display = isChecked ? 'block' : 'none';
+            
+            if (isChecked) {
+                toggleAssignDaysSelector();
+            }
+        }
+
+        function toggleAssignDaysSelector() {
+            const frequency = document.getElementById('assign-frequency').value;
+            const daysSelector = document.getElementById('assign-days-selector');
+            
+            if (frequency === 'daily' || frequency === 'monthly') {
+                daysSelector.style.display = 'none';
+            } else {
+                daysSelector.style.display = 'block';
+            }
         }
 
         function confirmAssignCaptureItem() {
@@ -1401,6 +1511,7 @@
             
             const dateInput = document.getElementById('assign-date').value;
             const timeInput = document.getElementById('assign-time').value.trim();
+            const isRecurring = document.getElementById('make-recurring').checked;
             
             if (!dateInput) {
                 alert('Please select a date!');
@@ -1413,40 +1524,95 @@
             
             if (!item) return;
             
-            // Get the week data for the selected date
-            const selectedDate = new Date(dateInput + 'T12:00:00');
-            const weekStart = getWeekStart(selectedDate);
-            const weekKey = getWeekKey(weekStart);
-            const weekData = generateWeekData(weekStart);
-            const dateKey = formatDate(selectedDate);
-            
-            // Add task to that day
-            weekData[dateKey].tasks.push({
-                id: Date.now(),
-                text: item.text,
-                category: item.category,
-                time: timeInput || undefined,
-                completed: false,
-                notes: item.notes || '',
-                fromCapture: true
-            });
-            
-            saveData(weekKey, weekData);
-            
-            // Update capture item status
-            item.status = 'assigned';
-            item.assignedTo = {
-                dateKey: dateKey,
-                weekKey: weekKey,
-                time: timeInput || null
-            };
-            
-            localStorage.setItem('capture-list', JSON.stringify(captureList));
-            
-            closeModal('assign-capture-modal');
-            renderCaptureList();
-            
-            alert(`✅ Added "${item.text}" to ${dateKey}!`);
+            if (isRecurring) {
+                // Add to recurring tasks
+                const frequency = document.getElementById('assign-frequency').value;
+                let days = [];
+                
+                if (frequency === 'daily') {
+                    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                } else if (frequency === 'monthly') {
+                    const selectedDate = new Date(dateInput + 'T12:00:00');
+                    days = [`day-${selectedDate.getDate()}`];
+                } else {
+                    document.querySelectorAll('#assign-days-selector input[type="checkbox"]:checked').forEach(cb => {
+                        days.push(cb.value);
+                    });
+                    
+                    if (days.length === 0) {
+                        alert('Please select at least one day!');
+                        return;
+                    }
+                }
+                
+                // Add to recurring tasks
+                const recurringTasks = loadData('recurring-tasks') || [];
+                recurringTasks.push({
+                    id: Date.now(),
+                    text: item.text,
+                    category: item.category,
+                    time: timeInput || item.time || undefined,
+                    routine: undefined,
+                    frequency: frequency,
+                    days: days,
+                    startDate: dateInput
+                });
+                
+                saveData('recurring-tasks', recurringTasks);
+                
+                // Update capture item
+                item.status = 'assigned';
+                item.assignedTo = {
+                    recurring: true,
+                    frequency: frequency,
+                    days: days,
+                    startDate: dateInput,
+                    time: timeInput || null
+                };
+                
+                localStorage.setItem('capture-list', JSON.stringify(captureList));
+                
+                closeModal('assign-capture-modal');
+                renderCaptureList();
+                
+                alert(`✅ Added "${item.text}" as recurring task starting ${dateInput}!`);
+                
+            } else {
+                // One-time assignment
+                const selectedDate = new Date(dateInput + 'T12:00:00');
+                const weekStart = getWeekStart(selectedDate);
+                const weekKey = getWeekKey(weekStart);
+                const weekData = generateWeekData(weekStart);
+                const dateKey = formatDate(selectedDate);
+                
+                // Add task to that day
+                weekData[dateKey].tasks.push({
+                    id: Date.now(),
+                    text: item.text,
+                    category: item.category,
+                    time: timeInput || undefined,
+                    completed: false,
+                    notes: item.notes || '',
+                    fromCapture: true
+                });
+                
+                saveData(weekKey, weekData);
+                
+                // Update capture item status
+                item.status = 'assigned';
+                item.assignedTo = {
+                    dateKey: dateKey,
+                    weekKey: weekKey,
+                    time: timeInput || null
+                };
+                
+                localStorage.setItem('capture-list', JSON.stringify(captureList));
+                
+                closeModal('assign-capture-modal');
+                renderCaptureList();
+                
+                alert(`✅ Added "${item.text}" to ${dateKey}!`);
+            }
         }
 
 
@@ -1941,11 +2107,16 @@
 
         // Add event listener to frequency dropdown
         document.addEventListener('DOMContentLoaded', function() {
-            const freqSelect = document.getElementById('routine-frequency');
-            if (freqSelect) {
-                freqSelect.addEventListener('change', toggleDaysSelector);
-            }
-        });
+    const freqSelect = document.getElementById('routine-frequency');
+    if (freqSelect) {
+        freqSelect.addEventListener('change', toggleDaysSelector);
+    }
+    
+    const assignFreqSelect = document.getElementById('assign-frequency');
+    if (assignFreqSelect) {
+        assignFreqSelect.addEventListener('change', toggleAssignDaysSelector);
+    }
+});
 
         function saveTaskToRoutine(event) {
             event.preventDefault();
