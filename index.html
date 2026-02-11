@@ -3523,63 +3523,59 @@ function editCaptureAssignment(itemId) {
             await sleep(100);
             
             // Run all tests
-            await testCreateItemWithTime();
-            await testTimeDisplayInAllTabs();
-            await testEditItemSyncsEverywhere();
-            await testEditAssignmentMovesTask();
-            await testDeleteScenario1();
-            await testDeleteScenario2();
-            await testDeleteScenario3();
-            await testCompletionSyncsAllViews();
-            await testUncompleteSyncsAllViews();
-            await testUnassignRemovesFromSchedule();
-            await testNoRecurringOptions();
-            await testEditFromMonthView();
-            await testGoToThisDay();
-            await testDragAndDropReordering();
-            await testTaskNotes();
-            await testDailyNotes();
-            await testAddTaskButton();
-            await testRoutinesView();
-            await testMultipleSameNameItems();
-            await testPriorityDisplay();
-            await testSpecialCharacters();
-            await testSimultaneousEdits();
-            
-            // Template Editor Tests
-            await testWeekStartsSunday();
-            await testWeekNumberCalculation();
-            await testEmptyTemplateGeneratesEmptyWeek();
-            await testAddTaskToTemplate();
-            await testAddRoutineToTemplate();
-            await testRemoveTaskFromTemplate();
-            await testEditTemplateTask();
-            await testMoveTemplateTaskOrder();
-            await testCopyPasteWeek();
-            await testClearWeekTemplate();
-            await testTemplateGeneratesCorrectWeek();
-            await test4WeekRotation();
-            await testExpandedRoutinesLibrary();
-            await testTemplateDoesNotAffectExistingWeeks();
-            
-            // Task Library Tests
-            await testTaskLibraryCollectsAllSources();
-            await testTaskLibrarySearchFilter();
-            await testTaskLibraryCategoryFilter();
-            await testTaskLibraryEditSyncsEverywhere();
-            await testTaskLibraryDeleteRemovesEverywhere();
-            await testTaskLibraryWhereUsedFindsLocations();
-            await testTaskLibrarySortAlpha();
-            await testTaskLibrarySortByCategory();
-            await testTaskLibraryAddToScheduleCreatesTask();
-            await testTaskLibraryAddToTemplateCreatesTask();
-            await testTaskLibraryExpandCollapse();
-            await testTaskLibraryEditSingleSource();
-            await testTaskLibraryDeleteRoutineOnly();
-            await testTaskLibraryDeleteRecurringOnly();
-            await testTaskLibrarySearchNoResults();
-            await testTaskLibrarySearchPlusCategoryFilter();
-            await testTaskLibraryEditToDuplicateName();
+            try { await testCreateItemWithTime(); } catch(e) { logTest('testCreateItemWithTime', false, 'ERROR: ' + e.message); }
+            try { await testTimeDisplayInAllTabs(); } catch(e) { logTest('testTimeDisplayInAllTabs', false, 'ERROR: ' + e.message); }
+            try { await testEditItemSyncsEverywhere(); } catch(e) { logTest('testEditItemSyncsEverywhere', false, 'ERROR: ' + e.message); }
+            try { await testEditAssignmentMovesTask(); } catch(e) { logTest('testEditAssignmentMovesTask', false, 'ERROR: ' + e.message); }
+            try { await testDeleteScenario1(); } catch(e) { logTest('testDeleteScenario1', false, 'ERROR: ' + e.message); }
+            try { await testDeleteScenario2(); } catch(e) { logTest('testDeleteScenario2', false, 'ERROR: ' + e.message); }
+            try { await testDeleteScenario3(); } catch(e) { logTest('testDeleteScenario3', false, 'ERROR: ' + e.message); }
+            try { await testCompletionSyncsAllViews(); } catch(e) { logTest('testCompletionSyncsAllViews', false, 'ERROR: ' + e.message); }
+            try { await testUncompleteSyncsAllViews(); } catch(e) { logTest('testUncompleteSyncsAllViews', false, 'ERROR: ' + e.message); }
+            try { await testUnassignRemovesFromSchedule(); } catch(e) { logTest('testUnassignRemovesFromSchedule', false, 'ERROR: ' + e.message); }
+            try { await testNoRecurringOptions(); } catch(e) { logTest('testNoRecurringOptions', false, 'ERROR: ' + e.message); }
+            try { await testEditFromMonthView(); } catch(e) { logTest('testEditFromMonthView', false, 'ERROR: ' + e.message); }
+            try { await testGoToThisDay(); } catch(e) { logTest('testGoToThisDay', false, 'ERROR: ' + e.message); }
+            try { await testDragAndDropReordering(); } catch(e) { logTest('testDragAndDropReordering', false, 'ERROR: ' + e.message); }
+            try { await testTaskNotes(); } catch(e) { logTest('testTaskNotes', false, 'ERROR: ' + e.message); }
+            try { await testDailyNotes(); } catch(e) { logTest('testDailyNotes', false, 'ERROR: ' + e.message); }
+            try { await testAddTaskButton(); } catch(e) { logTest('testAddTaskButton', false, 'ERROR: ' + e.message); }
+            try { await testRoutinesView(); } catch(e) { logTest('testRoutinesView', false, 'ERROR: ' + e.message); }
+            try { await testMultipleSameNameItems(); } catch(e) { logTest('testMultipleSameNameItems', false, 'ERROR: ' + e.message); }
+            try { await testPriorityDisplay(); } catch(e) { logTest('testPriorityDisplay', false, 'ERROR: ' + e.message); }
+            try { await testSpecialCharacters(); } catch(e) { logTest('testSpecialCharacters', false, 'ERROR: ' + e.message); }
+            try { await testSimultaneousEdits(); } catch(e) { logTest('testSimultaneousEdits', false, 'ERROR: ' + e.message); }
+            try { await testWeekStartsSunday(); } catch(e) { logTest('testWeekStartsSunday', false, 'ERROR: ' + e.message); }
+            try { await testWeekNumberCalculation(); } catch(e) { logTest('testWeekNumberCalculation', false, 'ERROR: ' + e.message); }
+            try { await testEmptyTemplateGeneratesEmptyWeek(); } catch(e) { logTest('testEmptyTemplateGeneratesEmptyWeek', false, 'ERROR: ' + e.message); }
+            try { await testAddTaskToTemplate(); } catch(e) { logTest('testAddTaskToTemplate', false, 'ERROR: ' + e.message); }
+            try { await testAddRoutineToTemplate(); } catch(e) { logTest('testAddRoutineToTemplate', false, 'ERROR: ' + e.message); }
+            try { await testRemoveTaskFromTemplate(); } catch(e) { logTest('testRemoveTaskFromTemplate', false, 'ERROR: ' + e.message); }
+            try { await testEditTemplateTask(); } catch(e) { logTest('testEditTemplateTask', false, 'ERROR: ' + e.message); }
+            try { await testMoveTemplateTaskOrder(); } catch(e) { logTest('testMoveTemplateTaskOrder', false, 'ERROR: ' + e.message); }
+            try { await testCopyPasteWeek(); } catch(e) { logTest('testCopyPasteWeek', false, 'ERROR: ' + e.message); }
+            try { await testClearWeekTemplate(); } catch(e) { logTest('testClearWeekTemplate', false, 'ERROR: ' + e.message); }
+            try { await testTemplateGeneratesCorrectWeek(); } catch(e) { logTest('testTemplateGeneratesCorrectWeek', false, 'ERROR: ' + e.message); }
+            try { await test4WeekRotation(); } catch(e) { logTest('test4WeekRotation', false, 'ERROR: ' + e.message); }
+            try { await testExpandedRoutinesLibrary(); } catch(e) { logTest('testExpandedRoutinesLibrary', false, 'ERROR: ' + e.message); }
+            try { await testTemplateDoesNotAffectExistingWeeks(); } catch(e) { logTest('testTemplateDoesNotAffectExistingWeeks', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryCollectsAllSources(); } catch(e) { logTest('testTaskLibraryCollectsAllSources', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibrarySearchFilter(); } catch(e) { logTest('testTaskLibrarySearchFilter', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryCategoryFilter(); } catch(e) { logTest('testTaskLibraryCategoryFilter', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryEditSyncsEverywhere(); } catch(e) { logTest('testTaskLibraryEditSyncsEverywhere', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryDeleteRemovesEverywhere(); } catch(e) { logTest('testTaskLibraryDeleteRemovesEverywhere', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryWhereUsedFindsLocations(); } catch(e) { logTest('testTaskLibraryWhereUsedFindsLocations', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibrarySortAlpha(); } catch(e) { logTest('testTaskLibrarySortAlpha', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibrarySortByCategory(); } catch(e) { logTest('testTaskLibrarySortByCategory', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryAddToScheduleCreatesTask(); } catch(e) { logTest('testTaskLibraryAddToScheduleCreatesTask', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryAddToTemplateCreatesTask(); } catch(e) { logTest('testTaskLibraryAddToTemplateCreatesTask', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryExpandCollapse(); } catch(e) { logTest('testTaskLibraryExpandCollapse', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryEditSingleSource(); } catch(e) { logTest('testTaskLibraryEditSingleSource', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryDeleteRoutineOnly(); } catch(e) { logTest('testTaskLibraryDeleteRoutineOnly', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryDeleteRecurringOnly(); } catch(e) { logTest('testTaskLibraryDeleteRecurringOnly', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibrarySearchNoResults(); } catch(e) { logTest('testTaskLibrarySearchNoResults', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibrarySearchPlusCategoryFilter(); } catch(e) { logTest('testTaskLibrarySearchPlusCategoryFilter', false, 'ERROR: ' + e.message); }
+            try { await testTaskLibraryEditToDuplicateName(); } catch(e) { logTest('testTaskLibraryEditToDuplicateName', false, 'ERROR: ' + e.message); }
             
             // Display results
             displayTestResults();
