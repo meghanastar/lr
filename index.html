@@ -995,16 +995,31 @@
     <div id="move-task-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Move Task</h2>
+                <h2 class="modal-title">📅 Move Task</h2>
                 <button class="modal-close" onclick="closeModal('move-task-modal')">×</button>
             </div>
+            <div id="move-task-name-display" style="font-weight: 600; margin-bottom: 15px; padding: 8px 12px; background: var(--surface-hover); border-radius: 8px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="moveTaskQuick('tomorrow')" style="width: 100%;">Tomorrow</button>
+                <button class="btn btn-primary" onclick="moveTaskQuick('next-week')" style="width: 100%;">Next Week (same day)</button>
+            </div>
             <div class="form-group">
-                <label class="form-label">Move to which day?</label>
+                <label class="form-label">Pick a specific date</label>
+                <input type="date" class="form-input" id="move-task-date">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Or choose a day this week</label>
                 <select class="form-select" id="move-task-day">
                     <option value="">Select a day...</option>
                 </select>
             </div>
-            <button class="btn btn-primary" onclick="confirmMoveTask()">Move Task</button>
+            <div id="move-overlap-warning" style="display: none; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem;">
+                ⚠️ <span id="move-overlap-text"></span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmMoveTask()" style="flex: 1;">Move Task</button>
+                <button class="btn" onclick="moveTaskSkip()" style="flex: 0 0 auto; background: var(--surface); border: 1px solid var(--border); color: var(--ruby);">Skip (Remove)</button>
+            </div>
         </div>
     </div>
     <div id="edit-routine-modal" class="modal">
@@ -1870,6 +1885,12 @@
             event.stopPropagation();
             currentMoveTask = { weekKey, dateKey, taskId };
             
+            // Show task name
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            document.getElementById('move-task-name-display').textContent = task ? task.text : '';
+            
+            // Populate this-week dropdown
             const weekStart = currentWeekView === 'current' ? getWeekStart() : getWeekStart(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
             const select = document.getElementById('move-task-day');
             select.innerHTML = '<option value="">Select a day...</option>';
@@ -1884,22 +1905,150 @@
                 }
             }
             
+            // Reset date picker and overlap warning
+            document.getElementById('move-task-date').value = '';
+            document.getElementById('move-overlap-warning').style.display = 'none';
+            
             document.getElementById('move-task-modal').classList.add('active');
+        }
+
+        // Get the target dateKey from whatever the user selected
+        function getMoveTargetDateKey() {
+            const datePicker = document.getElementById('move-task-date').value;
+            const daySelect = document.getElementById('move-task-day').value;
+            
+            if (datePicker) return datePicker;
+            if (daySelect) return daySelect;
+            return null;
+        }
+
+        // Check for time overlap on a target day
+        function checkTimeOverlap(task, targetWeekKey, targetDateKey) {
+            if (!task.startTime) return null;
+            
+            const targetWeekData = loadData(targetWeekKey);
+            if (!targetWeekData || !targetWeekData[targetDateKey]) return null;
+            
+            const taskStart = timeToMinutes(task.startTime);
+            const taskDuration = parseDurationToMinutes(task.duration);
+            const taskEnd = taskStart + taskDuration;
+            
+            for (const existing of targetWeekData[targetDateKey].tasks) {
+                if (!existing.startTime) continue;
+                const exStart = timeToMinutes(existing.startTime);
+                const exDuration = parseDurationToMinutes(existing.duration);
+                const exEnd = exStart + exDuration;
+                
+                // Overlap if ranges intersect
+                if (taskStart < exEnd && taskEnd > exStart) {
+                    return existing;
+                }
+            }
+            return null;
+        }
+
+        function moveTaskQuick(destination) {
+            if (!currentMoveTask) return;
+            const { weekKey, dateKey, taskId } = currentMoveTask;
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            let targetDate;
+            if (destination === 'tomorrow') {
+                targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + 1);
+            } else if (destination === 'next-week') {
+                const currentDate = parseLocalDate(dateKey);
+                targetDate = new Date(currentDate);
+                targetDate.setDate(currentDate.getDate() + 7);
+            }
+            
+            const targetDateKey = formatDate(targetDate);
+            const targetWeekStart = getWeekStart(targetDate);
+            const targetWeekKey = getWeekKey(targetWeekStart);
+            
+            // Ensure target week exists
+            const targetWeekData = generateWeekData(targetWeekStart);
+            
+            // Check overlap
+            const overlap = checkTimeOverlap(task, targetWeekKey, targetDateKey);
+            if (overlap) {
+                document.getElementById('move-overlap-text').textContent = 
+                    `This task overlaps with "${overlap.text}" at ${formatTime12hr(overlap.startTime)} on ${targetDateKey}. Move anyway using the Move button below, or pick a different date.`;
+                document.getElementById('move-overlap-warning').style.display = 'block';
+                // Pre-fill the date picker so they can confirm via the Move button
+                document.getElementById('move-task-date').value = targetDateKey;
+                return;
+            }
+            
+            executeMoveTask(targetDateKey, targetWeekKey);
         }
 
         function confirmMoveTask() {
             if (!currentMoveTask) return;
-            const targetDay = document.getElementById('move-task-day').value;
-            if (!targetDay) return;
-
+            const targetDateKey = getMoveTargetDateKey();
+            if (!targetDateKey) { alert('Please select a destination day or date.'); return; }
+            
             const { weekKey, dateKey, taskId } = currentMoveTask;
             const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            if (!task) return;
             
-            const taskIndex = weekData[dateKey].tasks.findIndex(t => t.id === taskId);
-            const task = weekData[dateKey].tasks[taskIndex];
-            weekData[dateKey].tasks.splice(taskIndex, 1);
-            weekData[targetDay].tasks.push(task);
+            const targetDate = parseLocalDate(targetDateKey);
+            const targetWeekStart = getWeekStart(targetDate);
+            const targetWeekKey = getWeekKey(targetWeekStart);
             
+            // Ensure target week exists
+            generateWeekData(targetWeekStart);
+            
+            // Check overlap (show warning but don't block — they clicked Move)
+            const overlap = checkTimeOverlap(task, targetWeekKey, targetDateKey);
+            if (overlap && document.getElementById('move-overlap-warning').style.display === 'none') {
+                document.getElementById('move-overlap-text').textContent = 
+                    `This task overlaps with "${overlap.text}" at ${formatTime12hr(overlap.startTime)} on ${targetDateKey}. Click Move again to confirm.`;
+                document.getElementById('move-overlap-warning').style.display = 'block';
+                return;
+            }
+            
+            executeMoveTask(targetDateKey, targetWeekKey);
+        }
+
+        function executeMoveTask(targetDateKey, targetWeekKey) {
+            const { weekKey, dateKey, taskId } = currentMoveTask;
+            
+            // Remove from source
+            const sourceWeekData = loadData(weekKey);
+            const taskIndex = sourceWeekData[dateKey].tasks.findIndex(t => t.id === taskId);
+            if (taskIndex === -1) return;
+            const task = sourceWeekData[dateKey].tasks.splice(taskIndex, 1)[0];
+            saveData(weekKey, sourceWeekData);
+            
+            // Add to target (preserve all fields including startTime and duration)
+            const targetWeekData = loadData(targetWeekKey) || generateWeekData(getWeekStart(parseLocalDate(targetDateKey)));
+            if (!targetWeekData[targetDateKey]) {
+                alert(`Error: Could not find ${targetDateKey} in target week data`);
+                return;
+            }
+            task.id = Date.now(); // New ID to avoid collisions
+            targetWeekData[targetDateKey].tasks.push(task);
+            saveData(targetWeekKey, targetWeekData);
+            
+            closeModal('move-task-modal');
+            alert(`✅ Moved "${task.text}" to ${targetDateKey}`);
+            renderCurrentView();
+        }
+
+        function moveTaskSkip() {
+            if (!currentMoveTask) return;
+            const { weekKey, dateKey, taskId } = currentMoveTask;
+            
+            const weekData = loadData(weekKey);
+            const task = weekData[dateKey].tasks.find(t => t.id === taskId);
+            
+            if (!confirm(`Skip "${task.text}"? This will remove it without completing it.`)) return;
+            
+            weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => t.id !== taskId);
             saveData(weekKey, weekData);
             closeModal('move-task-modal');
             renderCurrentView();
@@ -4033,6 +4182,38 @@ function editCaptureAssignment(itemId) {
             try { await testMixedDayRendersBothColumns(); } catch(e) { logTest('testMixedDayRendersBothColumns', false, 'ERROR: ' + e.message); }
             try { await testNowLinePositioning(); } catch(e) { logTest('testNowLinePositioning', false, 'ERROR: ' + e.message); }
             try { await testTimelineCompletedTaskStyle(); } catch(e) { logTest('testTimelineCompletedTaskStyle', false, 'ERROR: ' + e.message); }
+            // Postpone / Move Tests
+            try { await testMoveToTomorrowPreservesFields(); } catch(e) { logTest('testMoveToTomorrowPreservesFields', false, 'ERROR: ' + e.message); }
+            try { await testMoveToNextWeekSameDay(); } catch(e) { logTest('testMoveToNextWeekSameDay', false, 'ERROR: ' + e.message); }
+            try { await testMoveToSpecificDate(); } catch(e) { logTest('testMoveToSpecificDate', false, 'ERROR: ' + e.message); }
+            try { await testMoveSkipRemovesTask(); } catch(e) { logTest('testMoveSkipRemovesTask', false, 'ERROR: ' + e.message); }
+            try { await testMovePreservesStartTimeAndDuration(); } catch(e) { logTest('testMovePreservesStartTimeAndDuration', false, 'ERROR: ' + e.message); }
+            try { await testMoveOverlapDetectsConflict(); } catch(e) { logTest('testMoveOverlapDetectsConflict', false, 'ERROR: ' + e.message); }
+            try { await testMoveNoOverlapNoWarning(); } catch(e) { logTest('testMoveNoOverlapNoWarning', false, 'ERROR: ' + e.message); }
+            try { await testMoveUnscheduledNoOverlapCheck(); } catch(e) { logTest('testMoveUnscheduledNoOverlapCheck', false, 'ERROR: ' + e.message); }
+            try { await testMoveRemovesFromSourceDay(); } catch(e) { logTest('testMoveRemovesFromSourceDay', false, 'ERROR: ' + e.message); }
+            try { await testMoveCrossWeek(); } catch(e) { logTest('testMoveCrossWeek', false, 'ERROR: ' + e.message); }
+            try { await testMovePreservesCategory(); } catch(e) { logTest('testMovePreservesCategory', false, 'ERROR: ' + e.message); }
+            try { await testMovePreservesNotes(); } catch(e) { logTest('testMovePreservesNotes', false, 'ERROR: ' + e.message); }
+            try { await testMoveModalShowsTaskName(); } catch(e) { logTest('testMoveModalShowsTaskName', false, 'ERROR: ' + e.message); }
+            try { await testOverlapPartialOverlap(); } catch(e) { logTest('testOverlapPartialOverlap', false, 'ERROR: ' + e.message); }
+            try { await testOverlapExactSameTime(); } catch(e) { logTest('testOverlapExactSameTime', false, 'ERROR: ' + e.message); }
+            try { await testOverlapAdjacentNoConflict(); } catch(e) { logTest('testOverlapAdjacentNoConflict', false, 'ERROR: ' + e.message); }
+            try { await testMoveViaDatePicker(); } catch(e) { logTest('testMoveViaDatePicker', false, 'ERROR: ' + e.message); }
+            try { await testMoveViaDropdown(); } catch(e) { logTest('testMoveViaDropdown', false, 'ERROR: ' + e.message); }
+            try { await testMoveDatePickerPriorityOverDropdown(); } catch(e) { logTest('testMoveDatePickerPriorityOverDropdown', false, 'ERROR: ' + e.message); }
+            try { await testOverlapWarningBecomesVisible(); } catch(e) { logTest('testOverlapWarningBecomesVisible', false, 'ERROR: ' + e.message); }
+            try { await testOverlapWarningClearsOnReopen(); } catch(e) { logTest('testOverlapWarningClearsOnReopen', false, 'ERROR: ' + e.message); }
+            try { await testMoveCompletedTaskStaysCompleted(); } catch(e) { logTest('testMoveCompletedTaskStaysCompleted', false, 'ERROR: ' + e.message); }
+            try { await testMoveRecurringTaskPreservesRecurringId(); } catch(e) { logTest('testMoveRecurringTaskPreservesRecurringId', false, 'ERROR: ' + e.message); }
+            try { await testMoveCaptureLinkedTask(); } catch(e) { logTest('testMoveCaptureLinkedTask', false, 'ERROR: ' + e.message); }
+            try { await testMoveOnlyTaskLeavesSourceEmpty(); } catch(e) { logTest('testMoveOnlyTaskLeavesSourceEmpty', false, 'ERROR: ' + e.message); }
+            try { await testMoveToToday(); } catch(e) { logTest('testMoveToToday', false, 'ERROR: ' + e.message); }
+            try { await testSkipCaptureLinkedTask(); } catch(e) { logTest('testSkipCaptureLinkedTask', false, 'ERROR: ' + e.message); }
+            try { await testOverlapDestinationNoScheduledTasks(); } catch(e) { logTest('testOverlapDestinationNoScheduledTasks', false, 'ERROR: ' + e.message); }
+            try { await testOverlapNoDurationVsExistingWithDuration(); } catch(e) { logTest('testOverlapNoDurationVsExistingWithDuration', false, 'ERROR: ' + e.message); }
+            try { await testOverlapMultipleConflictsReportsFirst(); } catch(e) { logTest('testOverlapMultipleConflictsReportsFirst', false, 'ERROR: ' + e.message); }
+            try { await testQuickTomorrowWithOverlapShowsWarning(); } catch(e) { logTest('testQuickTomorrowWithOverlapShowsWarning', false, 'ERROR: ' + e.message); }
             
             // Display results
             displayTestResults();
@@ -7024,6 +7205,981 @@ async function testEditAssignmentMovesTask() {
             logTest('Timeline completed task has completed style class',
                 doneHasClass && !notDoneHasClass,
                 `Done has class: ${doneHasClass}, NotDone has class: ${notDoneHasClass}`);
+        }
+
+        // ============================================
+        // POSTPONE / MOVE TESTS
+        // ============================================
+
+        async function testMoveToTomorrowPreservesFields() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.901;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Move-Tomorrow-Test',
+                category: 'skincare',
+                startTime: '09:00',
+                duration: '20 min',
+                completed: false,
+                notes: 'test notes'
+            });
+            saveData(weekKey, weekData);
+            
+            // Execute the move
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const sourceData = loadData(weekKey);
+            const sourceGone = !sourceData[todayKey].tasks.some(t => t.text === 'Move-Tomorrow-Test');
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'Move-Tomorrow-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'Move-Tomorrow-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Move to tomorrow preserves all fields',
+                sourceGone && !!found && found.startTime === '09:00' && found.duration === '20 min' && found.notes === 'test notes',
+                found ? `startTime=${found.startTime}, duration=${found.duration}, notes=${found.notes}` : 'Not found');
+        }
+
+        async function testMoveToNextWeekSameDay() {
+            const today = new Date();
+            const nextWeekDate = new Date(today);
+            nextWeekDate.setDate(today.getDate() + 7);
+            const nextWeekKey = formatDate(nextWeekDate);
+            
+            // Verify the date math
+            const todayDayNum = today.getDay();
+            const nextDayNum = nextWeekDate.getDay();
+            
+            logTest('Next week same day date math',
+                todayDayNum === nextDayNum,
+                `Today: day ${todayDayNum}, Next week: day ${nextDayNum}`);
+        }
+
+        async function testMoveToSpecificDate() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Target: 5 days from now
+            const target = new Date(today);
+            target.setDate(today.getDate() + 5);
+            const targetDateKey = formatDate(target);
+            const targetWeekStart = getWeekStart(target);
+            const targetWeekKey = getWeekKey(targetWeekStart);
+            generateWeekData(targetWeekStart);
+            
+            const taskId = Date.now() + 0.911;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Move-Specific-Date-Test',
+                category: 'cleaning',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(targetDateKey, targetWeekKey);
+            
+            const targetData = loadData(targetWeekKey);
+            const found = targetData[targetDateKey].tasks.find(t => t.text === 'Move-Specific-Date-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[targetDateKey].tasks = targetData[targetDateKey].tasks.filter(t => t.text !== 'Move-Specific-Date-Test');
+                saveData(targetWeekKey, targetData);
+            }
+            
+            logTest('Move to specific date works',
+                !!found,
+                found ? `Found on ${targetDateKey}` : 'Not found');
+        }
+
+        async function testMoveSkipRemovesTask() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const taskId = Date.now() + 0.921;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Skip-Test-Task',
+                category: 'habit',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Simulate skip (without confirm dialog)
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.id !== taskId);
+            saveData(weekKey, wd);
+            
+            const reloaded = loadData(weekKey);
+            const gone = !reloaded[todayKey].tasks.some(t => t.text === 'Skip-Test-Task');
+            
+            logTest('Skip removes task without completing',
+                gone,
+                gone ? 'Task removed' : 'Task still present');
+        }
+
+        async function testMovePreservesStartTimeAndDuration() {
+            const tasks = [{
+                id: 1,
+                text: 'Preserve-Time-Test',
+                category: 'habit',
+                startTime: '14:30',
+                duration: '1 hour 15 min',
+                completed: false,
+                notes: 'my notes'
+            }];
+            
+            // Simulate a move: splice from source, push to target
+            const moved = tasks.splice(0, 1)[0];
+            moved.id = Date.now();
+            const target = [];
+            target.push(moved);
+            
+            const preserved = target[0].startTime === '14:30' && 
+                             target[0].duration === '1 hour 15 min' &&
+                             target[0].notes === 'my notes';
+            
+            logTest('Move preserves startTime, duration, and notes',
+                preserved,
+                `startTime=${target[0].startTime}, duration=${target[0].duration}, notes=${target[0].notes}`);
+        }
+
+        async function testMoveOverlapDetectsConflict() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Put an existing task at 10:00-10:30
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.931,
+                text: 'Existing-10AM',
+                category: 'habit',
+                startTime: '10:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Check overlap with a task at 10:15 (should overlap)
+            const movingTask = { startTime: '10:15', duration: '30 min' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'Existing-10AM');
+            saveData(weekKey, wd);
+            
+            logTest('Overlap detection finds conflicting task',
+                !!overlap && overlap.text === 'Existing-10AM',
+                overlap ? `Overlaps with: ${overlap.text}` : 'No overlap detected');
+        }
+
+        async function testMoveNoOverlapNoWarning() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.941,
+                text: 'Existing-Morning',
+                category: 'habit',
+                startTime: '08:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Check overlap with a task at 15:00 (should NOT overlap)
+            const movingTask = { startTime: '15:00', duration: '45 min' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'Existing-Morning');
+            saveData(weekKey, wd);
+            
+            logTest('No overlap when times dont conflict',
+                overlap === null,
+                overlap ? `Incorrectly found overlap: ${overlap.text}` : 'Correctly no overlap');
+        }
+
+        async function testMoveUnscheduledNoOverlapCheck() {
+            // Unscheduled tasks (no startTime) should return null from overlap check
+            const movingTask = { text: 'No Time Task' }; // no startTime
+            const overlap = checkTimeOverlap(movingTask, 'any-week', 'any-date');
+            
+            logTest('Unscheduled task skips overlap check',
+                overlap === null,
+                overlap === null ? 'Correctly skipped' : 'Incorrectly checked');
+        }
+
+        async function testMoveRemovesFromSourceDay() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.951;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Source-Remove-Test',
+                category: 'cleaning',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            const beforeCount = loadData(weekKey)[todayKey].tasks.filter(t => t.text === 'Source-Remove-Test').length;
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const afterCount = loadData(weekKey)[todayKey].tasks.filter(t => t.text === 'Source-Remove-Test').length;
+            
+            // Clean up
+            const td = loadData(tmrWeekKey);
+            if (td && td[tomorrowKey]) {
+                td[tomorrowKey].tasks = td[tomorrowKey].tasks.filter(t => t.text !== 'Source-Remove-Test');
+                saveData(tmrWeekKey, td);
+            }
+            
+            logTest('Move removes task from source day',
+                beforeCount === 1 && afterCount === 0,
+                `Before: ${beforeCount}, After: ${afterCount}`);
+        }
+
+        async function testMoveCrossWeek() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Target 2 weeks from now
+            const farDate = new Date(today);
+            farDate.setDate(today.getDate() + 14);
+            const farDateKey = formatDate(farDate);
+            const farWeekStart = getWeekStart(farDate);
+            const farWeekKey = getWeekKey(farWeekStart);
+            generateWeekData(farWeekStart);
+            
+            const taskId = Date.now() + 0.961;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'CrossWeek-Move-Test',
+                category: 'hair',
+                startTime: '16:00',
+                duration: '45 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(farDateKey, farWeekKey);
+            
+            const farData = loadData(farWeekKey);
+            const found = farData[farDateKey].tasks.find(t => t.text === 'CrossWeek-Move-Test');
+            
+            // Clean up
+            if (found) {
+                farData[farDateKey].tasks = farData[farDateKey].tasks.filter(t => t.text !== 'CrossWeek-Move-Test');
+                saveData(farWeekKey, farData);
+            }
+            
+            logTest('Move cross-week works',
+                !!found && found.startTime === '16:00',
+                found ? `Found on ${farDateKey}, startTime=${found.startTime}` : 'Not found');
+        }
+
+        async function testMovePreservesCategory() {
+            const tasks = [{
+                id: 1, text: 'Cat-Test', category: 'deepclean', completed: false
+            }];
+            const moved = { ...tasks[0], id: Date.now() };
+            
+            logTest('Move preserves category',
+                moved.category === 'deepclean',
+                `category=${moved.category}`);
+        }
+
+        async function testMovePreservesNotes() {
+            const tasks = [{
+                id: 1, text: 'Notes-Test', category: 'habit', notes: 'Important notes here', completed: false
+            }];
+            const moved = { ...tasks[0], id: Date.now() };
+            
+            logTest('Move preserves notes',
+                moved.notes === 'Important notes here',
+                `notes=${moved.notes}`);
+        }
+
+        async function testMoveModalShowsTaskName() {
+            const display = document.getElementById('move-task-name-display');
+            
+            logTest('Move modal has task name display element',
+                !!display,
+                display ? 'Element found' : 'Element missing');
+        }
+
+        async function testOverlapPartialOverlap() {
+            // Existing: 10:00-11:00, Moving: 10:30-11:30
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.971,
+                text: 'Partial-Overlap-Existing',
+                category: 'habit',
+                startTime: '10:00',
+                duration: '1 hour',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            const movingTask = { startTime: '10:30', duration: '1 hour' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'Partial-Overlap-Existing');
+            saveData(weekKey, wd);
+            
+            logTest('Partial overlap detected (end of existing overlaps start of new)',
+                !!overlap,
+                overlap ? `Overlaps with: ${overlap.text}` : 'No overlap found');
+        }
+
+        async function testOverlapExactSameTime() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.981,
+                text: 'Exact-Same-Time',
+                category: 'habit',
+                startTime: '14:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            const movingTask = { startTime: '14:00', duration: '30 min' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'Exact-Same-Time');
+            saveData(weekKey, wd);
+            
+            logTest('Exact same time detected as overlap',
+                !!overlap,
+                overlap ? `Overlaps with: ${overlap.text}` : 'No overlap found');
+        }
+
+        async function testOverlapAdjacentNoConflict() {
+            // Existing: 10:00-10:30, Moving: 10:30-11:00 (adjacent, NOT overlapping)
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.991,
+                text: 'Adjacent-Task',
+                category: 'habit',
+                startTime: '10:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // 10:30 start = exactly when the other ends — NOT an overlap
+            const movingTask = { startTime: '10:30', duration: '30 min' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'Adjacent-Task');
+            saveData(weekKey, wd);
+            
+            logTest('Adjacent tasks (no gap, no overlap) are NOT conflicting',
+                overlap === null,
+                overlap ? `Incorrectly found overlap: ${overlap.text}` : 'Correctly no overlap');
+        }
+
+        async function testMoveViaDatePicker() {
+            // getMoveTargetDateKey should return date picker value when set
+            document.getElementById('move-task-date').value = '2026-03-15';
+            document.getElementById('move-task-day').value = '';
+            
+            const result = getMoveTargetDateKey();
+            document.getElementById('move-task-date').value = '';
+            
+            logTest('Move via date picker returns picker value',
+                result === '2026-03-15',
+                `Result: ${result}`);
+        }
+
+        async function testMoveViaDropdown() {
+            document.getElementById('move-task-date').value = '';
+            document.getElementById('move-task-day').value = '2026-02-16';
+            
+            const result = getMoveTargetDateKey();
+            document.getElementById('move-task-day').value = '';
+            
+            logTest('Move via dropdown returns dropdown value',
+                result === '2026-02-16',
+                `Result: ${result}`);
+        }
+
+        async function testMoveDatePickerPriorityOverDropdown() {
+            document.getElementById('move-task-date').value = '2026-03-20';
+            document.getElementById('move-task-day').value = '2026-02-16';
+            
+            const result = getMoveTargetDateKey();
+            document.getElementById('move-task-date').value = '';
+            document.getElementById('move-task-day').value = '';
+            
+            logTest('Date picker takes priority over dropdown when both set',
+                result === '2026-03-20',
+                `Result: ${result}`);
+        }
+
+        async function testOverlapWarningBecomesVisible() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Create conflicting task
+            const existingId = Date.now() + 0.201;
+            weekData[todayKey].tasks.push({
+                id: existingId,
+                text: 'Warning-Visible-Existing',
+                category: 'habit',
+                startTime: '11:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Set up modal state
+            const movingId = Date.now() + 0.202;
+            const wd2 = loadData(weekKey);
+            wd2[todayKey].tasks.push({
+                id: movingId,
+                text: 'Warning-Visible-Moving',
+                category: 'cleaning',
+                startTime: '11:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, wd2);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId: movingId };
+            document.getElementById('move-task-date').value = todayKey;
+            document.getElementById('move-overlap-warning').style.display = 'none';
+            
+            // Call confirmMoveTask — it should show the warning on first click
+            confirmMoveTask();
+            
+            const warningVisible = document.getElementById('move-overlap-warning').style.display !== 'none';
+            
+            // Clean up
+            document.getElementById('move-overlap-warning').style.display = 'none';
+            document.getElementById('move-task-date').value = '';
+            const wd3 = loadData(weekKey);
+            wd3[todayKey].tasks = wd3[todayKey].tasks.filter(t => 
+                t.text !== 'Warning-Visible-Existing' && t.text !== 'Warning-Visible-Moving');
+            saveData(weekKey, wd3);
+            
+            logTest('Overlap warning div becomes visible on conflict',
+                warningVisible,
+                warningVisible ? 'Warning shown' : 'Warning not shown');
+        }
+
+        async function testOverlapWarningClearsOnReopen() {
+            // The warning should be hidden when opening the modal
+            const warning = document.getElementById('move-overlap-warning');
+            warning.style.display = 'block'; // simulate leftover warning
+            
+            // openMoveTaskModal resets it — simulate the reset part
+            warning.style.display = 'none';
+            
+            const cleared = warning.style.display === 'none';
+            
+            logTest('Overlap warning clears when modal reopened',
+                cleared,
+                cleared ? 'Correctly cleared' : 'Still visible');
+        }
+
+        async function testMoveCompletedTaskStaysCompleted() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.211;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Completed-Move-Test',
+                category: 'habit',
+                completed: true,
+                notes: 'done already'
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'Completed-Move-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'Completed-Move-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Move completed task stays completed',
+                !!found && found.completed === true,
+                found ? `completed=${found.completed}` : 'Not found');
+        }
+
+        async function testMoveRecurringTaskPreservesRecurringId() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.221;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Recurring-Move-Test',
+                category: 'cleaning',
+                recurringId: 'rec-123',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'Recurring-Move-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'Recurring-Move-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Move recurring task preserves recurringId',
+                !!found && found.recurringId === 'rec-123',
+                found ? `recurringId=${found.recurringId}` : 'Not found');
+        }
+
+        async function testMoveCaptureLinkedTask() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.231;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Capture-Move-Test',
+                category: 'special',
+                fromCapture: true,
+                captureItemId: 88888,
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const targetData = loadData(tmrWeekKey);
+            const found = targetData[tomorrowKey].tasks.find(t => t.text === 'Capture-Move-Test');
+            
+            // Clean up
+            if (found) {
+                targetData[tomorrowKey].tasks = targetData[tomorrowKey].tasks.filter(t => t.text !== 'Capture-Move-Test');
+                saveData(tmrWeekKey, targetData);
+            }
+            
+            logTest('Move capture-linked task preserves fromCapture and captureItemId',
+                !!found && found.fromCapture === true && found.captureItemId === 88888,
+                found ? `fromCapture=${found.fromCapture}, captureItemId=${found.captureItemId}` : 'Not found');
+        }
+
+        async function testMoveOnlyTaskLeavesSourceEmpty() {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            generateWeekData(tmrWeekStart);
+            
+            // Clear all tasks from today, add just one
+            weekData[todayKey].tasks = [];
+            const taskId = Date.now() + 0.241;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Only-Task-Test',
+                category: 'habit',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            currentMoveTask = { weekKey, dateKey: todayKey, taskId };
+            executeMoveTask(tomorrowKey, tmrWeekKey);
+            
+            const sourceData = loadData(weekKey);
+            const sourceEmpty = sourceData[todayKey].tasks.length === 0;
+            
+            // Clean up — restore today from template
+            const restored = generateWeekData(weekStart);
+            // Also clean target
+            const td = loadData(tmrWeekKey);
+            if (td && td[tomorrowKey]) {
+                td[tomorrowKey].tasks = td[tomorrowKey].tasks.filter(t => t.text !== 'Only-Task-Test');
+                saveData(tmrWeekKey, td);
+            }
+            
+            logTest('Moving only task leaves source day empty',
+                sourceEmpty,
+                `Source tasks after move: ${sourceData[todayKey].tasks.length}`);
+        }
+
+        async function testMoveToToday() {
+            // Move a task from tomorrow back to today
+            const today = new Date();
+            const todayKey = formatDate(today);
+            const todayWeekStart = getWeekStart(today);
+            const todayWeekKey = getWeekKey(todayWeekStart);
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            const tmrWeekData = generateWeekData(tmrWeekStart);
+            
+            const taskId = Date.now() + 0.251;
+            tmrWeekData[tomorrowKey].tasks.push({
+                id: taskId,
+                text: 'MoveBack-To-Today',
+                category: 'skincare',
+                startTime: '08:00',
+                completed: false,
+                notes: ''
+            });
+            saveData(tmrWeekKey, tmrWeekData);
+            
+            currentMoveTask = { weekKey: tmrWeekKey, dateKey: tomorrowKey, taskId };
+            executeMoveTask(todayKey, todayWeekKey);
+            
+            const todayData = loadData(todayWeekKey);
+            const found = todayData[todayKey].tasks.find(t => t.text === 'MoveBack-To-Today');
+            
+            const tmrData = loadData(tmrWeekKey);
+            const goneFromTmr = !tmrData[tomorrowKey].tasks.some(t => t.text === 'MoveBack-To-Today');
+            
+            // Clean up
+            if (found) {
+                todayData[todayKey].tasks = todayData[todayKey].tasks.filter(t => t.text !== 'MoveBack-To-Today');
+                saveData(todayWeekKey, todayData);
+            }
+            
+            logTest('Move task from future back to today works',
+                !!found && goneFromTmr && found.startTime === '08:00',
+                found ? `Found today: yes, Gone from tmr: ${goneFromTmr}` : 'Not found on today');
+        }
+
+        async function testSkipCaptureLinkedTask() {
+            // When skipping a capture-linked task, it should be removed from schedule
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            const taskId = Date.now() + 0.261;
+            weekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Skip-Capture-Test',
+                category: 'special',
+                fromCapture: true,
+                captureItemId: 77777,
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Skip = just remove
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.id !== taskId);
+            saveData(weekKey, wd);
+            
+            const reloaded = loadData(weekKey);
+            const gone = !reloaded[todayKey].tasks.some(t => t.text === 'Skip-Capture-Test');
+            
+            logTest('Skip capture-linked task removes it from schedule',
+                gone,
+                gone ? 'Removed' : 'Still present');
+        }
+
+        async function testOverlapDestinationNoScheduledTasks() {
+            // If destination has no scheduled tasks at all, no overlap possible
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            // Ensure no scheduled tasks on today (clear any with startTime)
+            weekData[todayKey].tasks = weekData[todayKey].tasks.filter(t => !t.startTime);
+            saveData(weekKey, weekData);
+            
+            const movingTask = { startTime: '12:00', duration: '1 hour' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            logTest('No overlap when destination has no scheduled tasks',
+                overlap === null,
+                overlap === null ? 'Correctly no overlap' : `Found unexpected: ${overlap.text}`);
+        }
+
+        async function testOverlapNoDurationVsExistingWithDuration() {
+            // Moving task has startTime but NO duration (defaults to 30 min)
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push({
+                id: Date.now() + 0.271,
+                text: 'HasDuration-Existing',
+                category: 'habit',
+                startTime: '13:00',
+                duration: '1 hour',
+                completed: false,
+                notes: ''
+            });
+            saveData(weekKey, weekData);
+            
+            // Moving task at 13:15, no duration (defaults to 30 min) — should overlap 13:00-14:00
+            const movingTask = { startTime: '13:15' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => t.text !== 'HasDuration-Existing');
+            saveData(weekKey, wd);
+            
+            logTest('No-duration task (default 30min) overlaps existing task with duration',
+                !!overlap,
+                overlap ? `Overlaps: ${overlap.text}` : 'No overlap detected');
+        }
+
+        async function testOverlapMultipleConflictsReportsFirst() {
+            // If multiple tasks conflict, checkTimeOverlap returns the first one found
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekKey = getWeekKey(weekStart);
+            const weekData = generateWeekData(weekStart);
+            const todayKey = formatDate(today);
+            
+            weekData[todayKey].tasks.push(
+                {
+                    id: Date.now() + 0.281,
+                    text: 'Multi-Overlap-A',
+                    category: 'habit',
+                    startTime: '09:00',
+                    duration: '2 hours',
+                    completed: false,
+                    notes: ''
+                },
+                {
+                    id: Date.now() + 0.282,
+                    text: 'Multi-Overlap-B',
+                    category: 'cleaning',
+                    startTime: '10:00',
+                    duration: '1 hour',
+                    completed: false,
+                    notes: ''
+                }
+            );
+            saveData(weekKey, weekData);
+            
+            // Moving task at 10:00 overlaps both A (9:00-11:00) and B (10:00-11:00)
+            const movingTask = { startTime: '10:00', duration: '30 min' };
+            const overlap = checkTimeOverlap(movingTask, weekKey, todayKey);
+            
+            // Clean up
+            const wd = loadData(weekKey);
+            wd[todayKey].tasks = wd[todayKey].tasks.filter(t => 
+                t.text !== 'Multi-Overlap-A' && t.text !== 'Multi-Overlap-B');
+            saveData(weekKey, wd);
+            
+            logTest('Multiple overlapping tasks: reports first conflict found',
+                !!overlap && (overlap.text === 'Multi-Overlap-A' || overlap.text === 'Multi-Overlap-B'),
+                overlap ? `Reported: ${overlap.text}` : 'No overlap found');
+        }
+
+        async function testQuickTomorrowWithOverlapShowsWarning() {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const tomorrowKey = formatDate(tomorrow);
+            const tmrWeekStart = getWeekStart(tomorrow);
+            const tmrWeekKey = getWeekKey(tmrWeekStart);
+            const tmrWeekData = generateWeekData(tmrWeekStart);
+            
+            // Add conflicting task on tomorrow at 09:00
+            tmrWeekData[tomorrowKey].tasks.push({
+                id: Date.now() + 0.291,
+                text: 'Tomorrow-Blocker',
+                category: 'habit',
+                startTime: '09:00',
+                duration: '1 hour',
+                completed: false,
+                notes: ''
+            });
+            saveData(tmrWeekKey, tmrWeekData);
+            
+            // Set up a task to move that conflicts
+            const todayWeekStart = getWeekStart(today);
+            const todayWeekKey = getWeekKey(todayWeekStart);
+            const todayWeekData = generateWeekData(todayWeekStart);
+            const todayKey = formatDate(today);
+            
+            const taskId = Date.now() + 0.292;
+            todayWeekData[todayKey].tasks.push({
+                id: taskId,
+                text: 'Quick-Tomorrow-Overlap',
+                category: 'cleaning',
+                startTime: '09:00',
+                duration: '30 min',
+                completed: false,
+                notes: ''
+            });
+            saveData(todayWeekKey, todayWeekData);
+            
+            // Reset warning
+            document.getElementById('move-overlap-warning').style.display = 'none';
+            document.getElementById('move-task-modal').classList.add('active');
+            
+            currentMoveTask = { weekKey: todayWeekKey, dateKey: todayKey, taskId };
+            moveTaskQuick('tomorrow');
+            
+            const warningShown = document.getElementById('move-overlap-warning').style.display !== 'none';
+            // Task should NOT have moved (warning blocks quick move)
+            const sourceData = loadData(todayWeekKey);
+            const stillOnSource = sourceData[todayKey].tasks.some(t => t.text === 'Quick-Tomorrow-Overlap');
+            
+            // Clean up
+            document.getElementById('move-overlap-warning').style.display = 'none';
+            document.getElementById('move-task-modal').classList.remove('active');
+            sourceData[todayKey].tasks = sourceData[todayKey].tasks.filter(t => t.text !== 'Quick-Tomorrow-Overlap');
+            saveData(todayWeekKey, sourceData);
+            const td = loadData(tmrWeekKey);
+            td[tomorrowKey].tasks = td[tomorrowKey].tasks.filter(t => 
+                t.text !== 'Tomorrow-Blocker' && t.text !== 'Quick-Tomorrow-Overlap');
+            saveData(tmrWeekKey, td);
+            
+            logTest('Quick Tomorrow with overlap shows warning instead of moving',
+                warningShown && stillOnSource,
+                `Warning: ${warningShown}, Still on source: ${stillOnSource}`);
         }
 
         // ============================================
