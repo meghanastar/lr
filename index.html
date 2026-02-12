@@ -11600,7 +11600,70 @@ async function testEditAssignmentMovesTask() {
             alert(`✅ Week ${currentTemplateWeek} cleared!`);
         }
 
+    function cleanupTestArtifacts() {
+        // Remove test tasks from all week data
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('week-')) {
+                try {
+                    const weekData = JSON.parse(localStorage.getItem(key));
+                    let changed = false;
+                    for (const dateKey in weekData) {
+                        if (weekData[dateKey] && weekData[dateKey].tasks) {
+                            const before = weekData[dateKey].tasks.length;
+                            weekData[dateKey].tasks = weekData[dateKey].tasks.filter(t => {
+                                const isTest = (t.text && (
+                                    t.text.startsWith('Move Test ') ||
+                                    t.text.startsWith('TL-Test-') ||
+                                    t.text.startsWith('hook-test') ||
+                                    t.text.startsWith('merge-') ||
+                                    t.text === 'Updated Test Item' ||
+                                    t.text === 'New Template Task' ||
+                                    t.text === 'Another New Task'
+                                )) || (t.category === 'projects');
+                                return !isTest;
+                            });
+                            if (weekData[dateKey].tasks.length !== before) changed = true;
+                        }
+                    }
+                    if (changed) localStorage.setItem(key, JSON.stringify(weekData));
+                } catch(e) {}
+            }
+        }
+        
+        // Remove test items from capture list
+        try {
+            const cl = JSON.parse(localStorage.getItem('capture-list') || '[]');
+            const cleaned = cl.filter(item => {
+                return !(item.text && (
+                    item.text.startsWith('Move Test ') ||
+                    item.text.startsWith('TL-Test-') ||
+                    item.text.startsWith('Test Item ') ||
+                    item.text.startsWith('hook-test') ||
+                    item.id?.startsWith?.('test-')
+                ));
+            });
+            if (cleaned.length !== cl.length) {
+                localStorage.setItem('capture-list', JSON.stringify(cleaned));
+            }
+        } catch(e) {}
+        
+        // Remove stale test keys
+        const testKeyPrefixes = ['hook-test-', 'merge-', 'disconnect-preserve-', 'test-sync-ts-'];
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && testKeyPrefixes.some(p => key.startsWith(p))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+    }
+
     function seedCaptureList() {
+        // One-time cleanup: remove any test artifacts from previous runs
+        cleanupTestArtifacts();
+        
         // Only seed once — if capture list already exists, skip
         if (localStorage.getItem('capture-list')) return;
         if (localStorage.getItem('capture-list-seeded')) return;
