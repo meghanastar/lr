@@ -36,6 +36,7 @@
             /* Deep Wine Red */
             --ruby: #7f1d1d;
             --ruby-light: #fee2e2;
+            --ruby-lighter: #fff5f5;
             --ruby-lighter: #fef2f2;
             --ruby-dark: #450a0a;
             
@@ -2351,6 +2352,54 @@
         }
 
 
+          let captureMultiSelect = false;
+          let captureSelectedIds = new Set();
+
+          function toggleCaptureMultiSelect() {
+              captureMultiSelect = !captureMultiSelect;
+              captureSelectedIds.clear();
+              renderCaptureList();
+          }
+
+          function toggleCaptureSelect(itemId, event) {
+              event.stopPropagation();
+              if (captureSelectedIds.has(itemId)) {
+                  captureSelectedIds.delete(itemId);
+              } else {
+                  captureSelectedIds.add(itemId);
+              }
+              renderCaptureList();
+          }
+
+          function selectAllCapture() {
+              const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+              let filteredItems = captureList;
+              if (currentCaptureFilter === 'unassigned') filteredItems = captureList.filter(i => i.status === 'unassigned');
+              else if (currentCaptureFilter === 'assigned') filteredItems = captureList.filter(i => i.status === 'assigned');
+              else if (currentCaptureFilter === 'completed') filteredItems = captureList.filter(i => i.status === 'completed');
+
+              const allSelected = filteredItems.every(i => captureSelectedIds.has(i.id));
+              if (allSelected) {
+                  captureSelectedIds.clear();
+              } else {
+                  filteredItems.forEach(i => captureSelectedIds.add(i.id));
+              }
+              renderCaptureList();
+          }
+
+          function deleteSelectedCapture() {
+              if (captureSelectedIds.size === 0) return;
+              if (!confirm(`Delete ${captureSelectedIds.size} selected item${captureSelectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+              let captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
+              captureList = captureList.filter(i => !captureSelectedIds.has(i.id));
+              localStorage.setItem('capture-list', JSON.stringify(captureList));
+
+              captureSelectedIds.clear();
+              captureMultiSelect = false;
+              renderCaptureList();
+          }
+
           function renderCaptureList() {
             const captureList = JSON.parse(localStorage.getItem('capture-list') || '[]');
             const container = document.getElementById('capture-list-content');
@@ -2379,6 +2428,20 @@
             }
             
             let html = '';
+            
+            // Multi-select controls
+            if (captureMultiSelect) {
+                html += `
+                    <div class="multi-select-bar">
+                        <span>${captureSelectedIds.size} selected</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn" onclick="selectAllCapture()" style="font-size: 0.85rem;">☐ Select All</button>
+                            <button class="btn" onclick="deleteSelectedCapture()" style="background: var(--ruby); color: white; border: none; font-size: 0.85rem;">🗑️ Delete Selected</button>
+                            <button class="btn" onclick="toggleCaptureMultiSelect()" style="font-size: 0.85rem;">Cancel</button>
+                        </div>
+                    </div>`;
+            }
+            
             filteredItems.forEach(item => {
                 const statusClass = item.status === 'unassigned' ? 'unassigned' : 
                                    item.status === 'completed' ? 'completed' : 'assigned';
@@ -2423,9 +2486,18 @@
                     `;
                 }
                 
+                const isCaptureSelected = captureMultiSelect && captureSelectedIds.has(item.id);
+                
                 html += `
-                    <div class="capture-item ${statusClass}">
+                    <div class="capture-item ${statusClass}" style="${isCaptureSelected ? 'border-color: var(--ruby); background: var(--ruby-lighter);' : ''}">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            ${captureMultiSelect ? `
+                                <div class="multi-select-check ${isCaptureSelected ? 'selected' : ''}" 
+                                     onclick="toggleCaptureSelect(${item.id}, event)"
+                                     style="margin-top: 2px;">
+                                    ${isCaptureSelected ? '✓' : ''}
+                                </div>
+                            ` : ''}
                             <div style="flex: 1;">
                                 <div style="font-size: 1rem; font-weight: 500; margin-bottom: 5px; ${item.status === 'completed' ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${item.text}</div>
                                                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -2445,6 +2517,10 @@
                     </div>
                 `;
             });
+            
+            html += `<button class="btn" onclick="toggleCaptureMultiSelect()" style="width: 100%; margin-top: 12px; background: ${captureMultiSelect ? 'var(--ruby-light)' : 'var(--surface)'}; color: ${captureMultiSelect ? 'var(--ruby)' : 'var(--text-light)'}; border: 1px solid ${captureMultiSelect ? 'var(--ruby)' : 'var(--border)'}; font-size: 0.85rem;">
+                ${captureMultiSelect ? '✕ Cancel Selection' : '☐ Select Multiple to Delete'}
+            </button>`;
             
             container.innerHTML = html;
         }
