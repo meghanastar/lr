@@ -1228,11 +1228,17 @@
                 <button class="modal-close" onclick="closeModal('add-routine-schedule-modal')">×</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Add to which day?</label>
-                <select class="form-select" id="routine-schedule-day">
-                    <option value="today">Today</option>
-                    <option value="tomorrow">Tomorrow</option>
-                </select>
+                <label class="form-label">Quick Pick</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button type="button" class="btn" onclick="setRoutineScheduleDate('today')" style="flex: 1; min-width: 80px;">Today</button>
+                    <button type="button" class="btn" onclick="setRoutineScheduleDate('tomorrow')" style="flex: 1; min-width: 80px;">Tomorrow</button>
+                    <button type="button" class="btn" onclick="setRoutineScheduleDate('this-weekend')" style="flex: 1; min-width: 80px;">Weekend</button>
+                    <button type="button" class="btn" onclick="setRoutineScheduleDate('next-week')" style="flex: 1; min-width: 80px;">Next Week</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Or Pick Specific Date</label>
+                <input type="date" class="form-input" id="routine-schedule-date">
             </div>
             <button class="btn btn-primary" onclick="confirmAddRoutineToSchedule()">Add to Schedule</button>
         </div>
@@ -1443,11 +1449,17 @@
                     <button class="modal-close" onclick="closeModal('task-library-schedule-modal')">×</button>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Which day?</label>
-                    <select class="form-select" id="task-library-schedule-day">
-                        <option value="today">Today</option>
-                        <option value="tomorrow">Tomorrow</option>
-                    </select>
+                    <label class="form-label">Quick Pick</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <button type="button" class="btn" onclick="setTaskLibraryScheduleDate('today')" style="flex: 1; min-width: 80px;">Today</button>
+                        <button type="button" class="btn" onclick="setTaskLibraryScheduleDate('tomorrow')" style="flex: 1; min-width: 80px;">Tomorrow</button>
+                        <button type="button" class="btn" onclick="setTaskLibraryScheduleDate('this-weekend')" style="flex: 1; min-width: 80px;">Weekend</button>
+                        <button type="button" class="btn" onclick="setTaskLibraryScheduleDate('next-week')" style="flex: 1; min-width: 80px;">Next Week</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Or Pick Specific Date</label>
+                    <input type="date" class="form-input" id="task-library-schedule-date">
                 </div>
                 <button class="btn btn-primary" onclick="confirmTaskLibraryAddToSchedule()">Add to Schedule</button>
             </div>
@@ -1470,14 +1482,15 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Which day(s)?</label>
+                    <button type="button" class="btn" onclick="toggleAllTemplateDays()" style="width: 100%; margin-bottom: 10px; background: linear-gradient(135deg, var(--primary), var(--amethyst)); color: white; border: none;">☐ Every Day</button>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="sunday"><span>Sunday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="monday"><span>Monday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="tuesday"><span>Tuesday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="wednesday"><span>Wednesday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="thursday"><span>Thursday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="friday"><span>Friday</span></label>
                         <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="saturday"><span>Saturday</span></label>
+                        <label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="tl-template-day-cb" value="sunday"><span>Sunday</span></label>
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="confirmTaskLibraryAddToTemplate()">Add to Template</button>
@@ -3675,29 +3688,46 @@ function editCaptureAssignment(itemId) {
 
         function openAddRoutineToScheduleModal(routineKey) {
             currentAddRoutineKey = routineKey;
+            document.getElementById('routine-schedule-date').value = formatDate(new Date());
             document.getElementById('add-routine-schedule-modal').classList.add('active');
+        }
+
+        function setRoutineScheduleDate(option) {
+            const today = new Date();
+            let targetDate;
+            if (option === 'today') {
+                targetDate = today;
+            } else if (option === 'tomorrow') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 1);
+            } else if (option === 'this-weekend') {
+                targetDate = new Date(today);
+                const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+                targetDate.setDate(today.getDate() + (daysUntilSaturday || 7));
+            } else if (option === 'next-week') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 7);
+            }
+            document.getElementById('routine-schedule-date').value = formatDate(targetDate);
         }
 
         async function confirmAddRoutineToSchedule() {
             if (!currentAddRoutineKey) return;
             
             const routine = ROUTINES_LIBRARY[currentAddRoutineKey];
-            const when = document.getElementById('routine-schedule-day').value;
+            const dateStr = document.getElementById('routine-schedule-date').value;
+            if (!dateStr) { alert('Please pick a date!'); return; }
             
-            const today = new Date();
-            let targetDate;
-            
-            if (when === 'today') {
-                targetDate = today;
-            } else {
-                targetDate = new Date(today);
-                targetDate.setDate(today.getDate() + 1);
-            }
-            
+            const targetDate = parseLocalDate(dateStr);
             const weekStart = getWeekStart(targetDate);
             const weekKey = getWeekKey(weekStart);
             const weekData = generateWeekData(weekStart);
             const dateKey = formatDate(targetDate);
+            
+            if (!weekData[dateKey]) {
+                alert('Invalid date selected.');
+                return;
+            }
             
             // Duplicate check
             const existing = findScheduleDuplicate(routine.name, weekData[dateKey].tasks);
@@ -3725,11 +3755,11 @@ function editCaptureAssignment(itemId) {
             
             saveData(weekKey, weekData);
             closeModal('add-routine-schedule-modal');
-            alert(`✅ Added "${routine.name}" to ${when}!`);
             
-            if (when === 'today') {
-                renderTodayView();
-            }
+            const dayName = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+            alert(`✅ Added "${routine.name}" to ${dayName}!`);
+            
+            renderCurrentView();
         }
 
         function loadRoutinesLibrary() {
@@ -7281,22 +7311,45 @@ async function testEditAssignmentMovesTask() {
             const task = JSON.parse(decodeURIComponent(encodedTask));
             currentTaskLibraryTask = task;
             document.getElementById('task-library-schedule-modal-title').textContent = `Add "${task.name}" to Schedule`;
+            document.getElementById('task-library-schedule-date').value = formatDate(new Date());
             document.getElementById('task-library-schedule-modal').classList.add('active');
+        }
+
+        function setTaskLibraryScheduleDate(option) {
+            const today = new Date();
+            let targetDate;
+            if (option === 'today') {
+                targetDate = today;
+            } else if (option === 'tomorrow') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 1);
+            } else if (option === 'this-weekend') {
+                targetDate = new Date(today);
+                const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+                targetDate.setDate(today.getDate() + (daysUntilSaturday || 7));
+            } else if (option === 'next-week') {
+                targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + 7);
+            }
+            document.getElementById('task-library-schedule-date').value = formatDate(targetDate);
         }
 
         async function confirmTaskLibraryAddToSchedule() {
             if (!currentTaskLibraryTask) return;
             const task = currentTaskLibraryTask;
-            const when = document.getElementById('task-library-schedule-day').value;
+            const dateStr = document.getElementById('task-library-schedule-date').value;
+            if (!dateStr) { alert('Please pick a date!'); return; }
             
-            const today = new Date();
-            let targetDate = new Date(today);
-            if (when === 'tomorrow') targetDate.setDate(today.getDate() + 1);
-            
+            const targetDate = parseLocalDate(dateStr);
             const weekStart = getWeekStart(targetDate);
             const weekKey = getWeekKey(weekStart);
             const weekData = generateWeekData(weekStart);
             const dateKey = formatDate(targetDate);
+            
+            if (!weekData[dateKey]) {
+                alert('Invalid date selected.');
+                return;
+            }
             
             // Duplicate check
             const existing = findScheduleDuplicate(task.name, weekData[dateKey].tasks);
@@ -7324,7 +7377,8 @@ async function testEditAssignmentMovesTask() {
             
             saveData(weekKey, weekData);
             closeModal('task-library-schedule-modal');
-            alert(`✅ Added "${task.name}" to ${when}!`);
+            const dayName = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+            alert(`✅ Added "${task.name}" to ${dayName}!`);
         }
 
         function taskLibraryAddToTemplate(encodedTask) {
@@ -7333,6 +7387,12 @@ async function testEditAssignmentMovesTask() {
             document.getElementById('task-library-template-modal-title').textContent = `Add "${task.name}" to Template`;
             document.querySelectorAll('.tl-template-day-cb').forEach(cb => cb.checked = false);
             document.getElementById('task-library-template-modal').classList.add('active');
+        }
+
+        function toggleAllTemplateDays() {
+            const cbs = document.querySelectorAll('.tl-template-day-cb');
+            const allChecked = Array.from(cbs).every(cb => cb.checked);
+            cbs.forEach(cb => cb.checked = !allChecked);
         }
 
         function confirmTaskLibraryAddToTemplate() {
