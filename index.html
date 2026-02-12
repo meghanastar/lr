@@ -11812,6 +11812,7 @@ async function testEditAssignmentMovesTask() {
             }
             html += '</select></div>';
             html += '<div class="form-group"><label class="form-label">Which day(s)?</label>';
+            html += `<button type="button" class="btn" onclick="document.querySelectorAll('.routine-template-day-cb').forEach(function(cb){var all=Array.from(document.querySelectorAll('.routine-template-day-cb')).every(function(c){return c.checked});cb.checked=!all;})" style="width: 100%; margin-bottom: 10px; background: linear-gradient(135deg, var(--primary), var(--amethyst)); color: white; border: none;">☐ Every Day</button>`;
             html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
             DAY_NAMES_ORDERED.forEach(day => {
                 html += `<label style="display: flex; align-items: center; gap: 10px;"><input type="checkbox" class="routine-template-day-cb" value="${day}"><span>${day.charAt(0).toUpperCase() + day.slice(1)}</span></label>`;
