@@ -1789,7 +1789,8 @@
             'post-hosting': { name: 'Post-Hosting Cleanup', time: '30-60 min', category: 'special', steps: ['Collect all dishes - dishwasher/sink', 'Take out trash and recycling', 'Wipe down all surfaces', 'Sweep/vacuum main areas', 'Put furniture back in place', 'Quick bathroom check', 'Deal with leftover food', 'Start a laundry load if needed'] },
             'gift-unwrap': { name: 'Gift Unwrapping Protocol', time: '5 min', category: 'habit', steps: ['The moment a gift gets unwrapped:', 'Decide: keep the bag/paper or not', 'If keeping: put directly in IKEA storage case', 'If not: recycling/trash immediately', 'Put gift in its home right away', 'Don\'t let wrapping/bags accumulate'] },
             'apartment-reset': { name: 'Full Apartment Reset', time: '5-6 hours', category: 'deepclean', steps: ['Phase 1: Create paths (10 min) - clear walkways first', 'Phase 2: Collect all laundry from every room, sort into piles', 'Phase 3: Room-by-room tidy - get every room to FUNCTIONAL', 'All items have homes, surfaces clear, pathways clear', 'Phase 4: Set up cleaning stations (all-purpose cleaner in every room)', 'Phase 5: Deep clean each room', 'Phase 6: Start laundry rotation', 'Phase 7: Final walkthrough', 'Get to functional FIRST, then deep clean. Don\'t try both at once.'] },
-            'ski-gear-storage': { name: 'Ski Gear Storage', time: '30 min', category: 'special', steps: ['Collect all ski stuff', 'Clean/wipe down equipment', 'Store high up in bedroom', 'Wash any ski clothing (check for Merino wool items)', 'End of season task'] }
+            'ski-gear-storage': { name: 'Ski Gear Storage', time: '30 min', category: 'special', steps: ['Collect all ski stuff', 'Clean/wipe down equipment', 'Store high up in bedroom', 'Wash any ski clothing (check for Merino wool items)', 'End of season task'] },
+            'post-trip-makeup-reset': { name: 'Post-Trip Makeup & Skincare Reset', time: '1.5-2 hours', category: 'special', steps: ['UNPACKING (45-60 min):', 'Remove all makeup brushes → wash thoroughly → dry → put away', 'Remove used face towels → laundry hamper', 'Remove shower/exfoliation gloves → discard or wash', 'Remove makeup brush cleaner towels → laundry or trash', 'Repack with fresh face towels', 'Repack fresh gloves/towels', 'INVENTORY CHECK (15-20 min):', 'Check shampoo, conditioner, face wash levels → note what needs refilling', 'Check razor blade → switch to fresh blade in travel kit', 'Check makeup for low/empty products → make shopping list', 'Check hair product levels → note what needs replacing', 'Check all products for anything dried out, expired, or damaged', 'REPACKING (30-40 min):', 'Restock face towels (fresh clean ones)', 'Restock shower/exfoliation gloves (new set)', 'Restock makeup brush cleaner towels', 'Refill low skincare products (transfer from full-size bottles)', 'Replace used/low makeup items', 'Replace hair products as needed', 'Install new razor blade', 'Organize everything back into travel bag neatly', 'Store travel bag in proper location', 'Do this within 24 hours of returning home!', 'Add any needed items to shopping list IMMEDIATELY'] }
                 };
 
         // 4-WEEK ROTATING TEMPLATE SYSTEM
@@ -11958,7 +11959,16 @@ async function testEditAssignmentMovesTask() {
             { text: 'Put away items from pink bag', category: 'cleaning', priority: 'medium', notes: 'Living room' },
             { text: 'Put away items from balloon bag', category: 'cleaning', priority: 'low', notes: 'Living room' },
             { text: 'Wash ALL makeup brushes & sponges (full deep clean)', category: 'special', priority: 'medium', notes: 'Post-wedding task - after Feb ~26' },
-            { text: 'Complete post-trip unpacking routine after wedding', category: 'special', priority: 'high', notes: 'Use the Post-Trip Unpack (Intense) routine' }
+            { text: 'Complete post-trip unpacking routine after wedding', category: 'special', priority: 'high', notes: 'Use the Post-Trip Unpack (Intense) routine' },
+            { text: 'Wash dishes in sink', category: 'cleaning', priority: 'high', notes: 'Kitchen - est. 20-30 min' },
+            { text: 'Clear kitchen counters', category: 'cleaning', priority: 'high', notes: 'Kitchen' },
+            { text: 'Wipe down kitchen counters', category: 'cleaning', priority: 'medium', notes: 'Kitchen' },
+            { text: 'Take out trash', category: 'cleaning', priority: 'high', notes: 'Kitchen' },
+            { text: 'Collect dirty clothes from bathroom → laundry', category: 'laundry', priority: 'medium', notes: 'Bathroom - est. 10-15 min' },
+            { text: 'Empty bathroom trash', category: 'cleaning', priority: 'medium', notes: 'Bathroom' },
+            { text: 'Quick bathroom sink wipe', category: 'cleaning', priority: 'low', notes: 'Bathroom' },
+            { text: 'Hang fresh hand towel', category: 'cleaning', priority: 'low', notes: 'Bathroom' },
+            { text: 'Relocate bags/items to proper homes', category: 'cleaning', priority: 'medium', notes: 'Living room' }
         ];
         
         const captureList = items.map((item, i) => ({
