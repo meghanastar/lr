@@ -1605,6 +1605,16 @@
             </div>
             
             <div class="form-group">
+                <label class="form-label">Quick Pick</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button type="button" class="btn" onclick="setAssignDate('today')" style="flex: 1; min-width: 80px;">Today</button>
+                    <button type="button" class="btn" onclick="setAssignDate('tomorrow')" style="flex: 1; min-width: 80px;">Tomorrow</button>
+                    <button type="button" class="btn" onclick="setAssignDate('this-weekend')" style="flex: 1; min-width: 80px;">Weekend</button>
+                    <button type="button" class="btn" onclick="setAssignDate('next-week')" style="flex: 1; min-width: 80px;">Next Week</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
                 <label class="form-label">Or Pick Specific Date</label>
                 <input type="date" class="form-input" id="assign-date" required>
             </div>
@@ -1744,7 +1754,7 @@
         // 4-WEEK ROTATING TEMPLATE SYSTEM
         // Anchor: Sunday Feb 15, 2026 = Week 1, Day 1
         const TEMPLATE_ANCHOR = '2026-02-09'; // Monday Feb 9, 2026
-        const DAY_NAMES_ORDERED = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const DAY_NAMES_ORDERED = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
         function getWeekNumber(date) {
             const anchor = parseLocalDate(TEMPLATE_ANCHOR);
@@ -2720,7 +2730,6 @@ function editCaptureAssignment(itemId) {
             // Set default date to today
             const today = new Date();
             document.getElementById('assign-date').value = formatDate(today);
-            document.getElementById('assign-date').min = formatDate(today); // Can't assign to past
             document.getElementById('assign-time').value = '';
             document.getElementById('make-recurring').checked = false;
             document.getElementById('recurring-options').style.display = 'none';
@@ -4690,6 +4699,13 @@ function editCaptureAssignment(itemId) {
             const _origAlert = window.alert;
             window.alert = function() {}; // suppress alerts during tests
             
+            // SNAPSHOT: Save ALL localStorage before tests
+            const _snapshot = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                _snapshot[key] = localStorage.getItem(key);
+            }
+            
             document.getElementById('test-results').style.display = 'block';
             document.getElementById('test-summary').innerHTML = '⏳ Running tests...';
             document.getElementById('test-details').innerHTML = '';
@@ -4920,9 +4936,21 @@ function editCaptureAssignment(itemId) {
             try { await testSyncStatusConnectedShowsGreen(); } catch(e) { logTest('testSyncStatusConnectedShowsGreen', false, 'ERROR: ' + e.message); }
             try { await testSyncLastTimeDisplays(); } catch(e) { logTest('testSyncLastTimeDisplays', false, 'ERROR: ' + e.message); }
             
+            // RESTORE: Put back ALL original localStorage data
+            localStorage.clear();
+            for (const key in _snapshot) {
+                localStorage.setItem(key, _snapshot[key]);
+            }
+            
             // Display results
             window.alert = _origAlert;
             _testMode = false;
+            
+            // Re-render to show real data
+            loadRoutinesLibrary();
+            renderCurrentView();
+            updateSyncUI();
+            
             displayTestResults();
         }
 
@@ -6268,9 +6296,9 @@ async function testEditAssignmentMovesTask() {
             const firstDay = formatDate(weekStart);
             const initialTaskCount = weekData[firstDay].tasks.length;
             
-            // Now add tasks to template
+            // Now add tasks to template for the first day (Monday)
             const weekNum = getWeekNumber(weekStart);
-            const dayName = getDayName(0); // Sunday
+            const dayName = getDayName(weekStart.getDay()); // Monday
             const template = loadMasterTemplate();
             if (!template[weekNum]) template[weekNum] = {};
             template[weekNum][dayName] = [
@@ -11244,7 +11272,7 @@ async function testEditAssignmentMovesTask() {
             const template = loadMasterTemplate();
             const weekTemplate = template[currentTemplateWeek] || {};
             
-            let html = '';
+            let html = `<button class="btn btn-primary" onclick="openAddTemplateTaskModal('everyday')" style="width: 100%; margin-bottom: 15px; background: linear-gradient(135deg, var(--primary), var(--amethyst));">+ Add Task to Every Day</button>`;
             DAY_NAMES_ORDERED.forEach(dayName => {
                 const tasks = weekTemplate[dayName] || [];
                 const displayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
@@ -11333,10 +11361,14 @@ async function testEditAssignmentMovesTask() {
             if (!currentTemplateAddDay) return;
             
             const routine = ROUTINES_LIBRARY[routineKey];
-            const dayDisplay = currentTemplateAddDay.charAt(0).toUpperCase() + currentTemplateAddDay.slice(1);
+            const isEveryday = currentTemplateAddDay === 'everyday';
+            const daysToAdd = isEveryday ? DAY_NAMES_ORDERED : [currentTemplateAddDay];
             
-            // Duplicate check
-            const existing = findTemplateDuplicate(routine.name, currentTemplateWeek, currentTemplateAddDay);
+            // Duplicate check on first day only (for everyday, check monday as representative)
+            const checkDay = daysToAdd[0];
+            const dayDisplay = isEveryday ? 'Every Day' : currentTemplateAddDay.charAt(0).toUpperCase() + currentTemplateAddDay.slice(1);
+            
+            const existing = findTemplateDuplicate(routine.name, currentTemplateWeek, checkDay);
             if (existing) {
                 const action = await showDuplicateWarning(routine.name, existing, `Week ${currentTemplateWeek} ${dayDisplay}`);
                 if (action === 'cancel') return;
@@ -11349,15 +11381,17 @@ async function testEditAssignmentMovesTask() {
             
             const template = loadMasterTemplate();
             
-            if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
-            if (!template[currentTemplateWeek][currentTemplateAddDay]) template[currentTemplateWeek][currentTemplateAddDay] = [];
-            
-            template[currentTemplateWeek][currentTemplateAddDay].push({
-                text: routine.name,
-                category: routine.category,
-                time: routine._overrideTime || routine.time,
-                routine: routineKey
-            });
+            for (const day of daysToAdd) {
+                if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
+                if (!template[currentTemplateWeek][day]) template[currentTemplateWeek][day] = [];
+                
+                template[currentTemplateWeek][day].push({
+                    text: routine.name,
+                    category: routine.category,
+                    time: routine._overrideTime || routine.time,
+                    routine: routineKey
+                });
+            }
             delete routine._overrideTime;
             
             saveMasterTemplate(template);
@@ -11374,10 +11408,13 @@ async function testEditAssignmentMovesTask() {
             const category = document.getElementById('template-custom-task-category').value;
             let time = document.getElementById('template-custom-task-time').value.trim();
             
-            const dayDisplay = currentTemplateAddDay.charAt(0).toUpperCase() + currentTemplateAddDay.slice(1);
+            const isEveryday = currentTemplateAddDay === 'everyday';
+            const daysToAdd = isEveryday ? DAY_NAMES_ORDERED : [currentTemplateAddDay];
+            const checkDay = daysToAdd[0];
+            const dayDisplay = isEveryday ? 'Every Day' : currentTemplateAddDay.charAt(0).toUpperCase() + currentTemplateAddDay.slice(1);
             
             // Duplicate check
-            const existing = findTemplateDuplicate(name, currentTemplateWeek, currentTemplateAddDay);
+            const existing = findTemplateDuplicate(name, currentTemplateWeek, checkDay);
             if (existing) {
                 const action = await showDuplicateWarning(name, existing, `Week ${currentTemplateWeek} ${dayDisplay}`);
                 if (action === 'cancel') return;
@@ -11389,16 +11426,19 @@ async function testEditAssignmentMovesTask() {
             }
             
             const template = loadMasterTemplate();
-            if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
-            if (!template[currentTemplateWeek][currentTemplateAddDay]) template[currentTemplateWeek][currentTemplateAddDay] = [];
             
-            template[currentTemplateWeek][currentTemplateAddDay].push({
-                text: name,
-                category: category,
-                time: time || undefined,
-                startTime: document.getElementById('template-custom-task-start-time').value || undefined,
-                duration: document.getElementById('template-custom-task-duration').value.trim() || undefined
-            });
+            for (const day of daysToAdd) {
+                if (!template[currentTemplateWeek]) template[currentTemplateWeek] = {};
+                if (!template[currentTemplateWeek][day]) template[currentTemplateWeek][day] = [];
+                
+                template[currentTemplateWeek][day].push({
+                    text: name,
+                    category: category,
+                    time: time || undefined,
+                    startTime: document.getElementById('template-custom-task-start-time').value || undefined,
+                    duration: document.getElementById('template-custom-task-duration').value.trim() || undefined
+                });
+            }
             
             saveMasterTemplate(template);
             closeModal('add-template-task-modal');
